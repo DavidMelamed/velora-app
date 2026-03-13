@@ -1,0 +1,11 @@
+{
+  "expo": {
+    "name": "Velora",
+    "slug": "velora",
+    "version": "1.0.0",
+    "scheme": "velora",
+    "platforms": ["ios", "android"],
+    "newArchEnabled": true,
+    "plugins": ["expo-router"]
+  }
+}

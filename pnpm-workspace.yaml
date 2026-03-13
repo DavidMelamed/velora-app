@@ -1,0 +1,7 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+
+catalog:
+  "@prisma/client": "^6.6.0"
+  "prisma": "^6.6.0"

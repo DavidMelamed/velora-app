@@ -1,0 +1,685 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [vector]
+}
+
+// ╔══════════════════════════════════════════════════╗
+// ║  CORE CRASH DATA (MMUCC 6th Edition Aligned)    ║
+// ╚══════════════════════════════════════════════════╝
+
+model Crash {
+  id                    String              @id @default(cuid())
+  stateUniqueId         String              @unique  // S1
+  agencyJurisdiction    String?                      // S2
+  policeReported        Boolean             @default(true)  // S3
+  stateReportable       Boolean             @default(true)  // S4
+
+  // C-series: Crash-level
+  crashDate             DateTime                     // C1
+  crashTime             String?                      // C2
+  roadwayClearanceTime  DateTime?                    // C3
+  county                String?                      // C4
+  latitude              Float?                       // C5
+  longitude             Float?                       // C5
+  firstHarmfulEvent     String?                      // C6
+  firstHarmfulEventLoc  String?                      // C7
+  mannerOfCollision     MannerOfCollision?           // C8
+  atmosphericCondition  AtmosphericCondition?        // C9
+  lightCondition        LightCondition?              // C10
+  relationToJunction    String?                      // C11
+  intersectionType      String?                      // C12
+  schoolBusRelated      Boolean             @default(false) // C13
+  workZone              Json?                        // C14
+  secondaryCrash        Boolean             @default(false) // C15
+  crashRelatedFactors   String[]                     // C16
+
+  // Derived
+  crashSeverity         CrashSeverity?
+  stateCode             String              // 2-letter state code
+  cityName              String?
+  streetAddress         String?
+
+  // Relations
+  vehicles              Vehicle[]
+  persons               Person[]
+  narratives            CrashNarrative[]
+  equalizer             CrashEqualizer?
+  feedbackEvents        FeedbackEvent[]
+
+  // Clustering
+  archetypeId           String?
+  archetype             CrashArchetype?     @relation(fields: [archetypeId], references: [id])
+
+  // Verification
+  confirmationCount     Int                 @default(0)
+  isVerified            Boolean             @default(false)
+
+  // Metadata
+  dataSource            String
+  rawData               Json?
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+
+  @@index([crashDate])
+  @@index([county])
+  @@index([stateCode])
+  @@index([latitude, longitude])
+  @@index([crashSeverity])
+  @@index([dataSource])
+  @@index([stateCode, crashDate])
+  @@index([archetypeId])
+}
+
+model Vehicle {
+  id                          String    @id @default(cuid())
+  crashId                     String
+  crash                       Crash     @relation(fields: [crashId], references: [id], onDelete: Cascade)
+
+  // V-series
+  vin                         String?            // V1
+  unitTypeAndNumber           Int?               // V2
+  registrationState           String?            // V3
+  licensePlate                String?            // V4
+  make                        String?            // V5
+  modelYear                   Int?               // V6
+  model                       String?            // V7
+  bodyType                    BodyTypeCategory?  // V8
+  totalOccupants              Int?               // V9
+  specialFunction             String?            // V10
+  emergencyUse                Boolean  @default(false) // V11
+  speedLimit                  Int?               // V12
+  directionOfTravel           String?            // V13
+  trafficwayDesc              String?            // V14
+  totalLanes                  Int?               // V15
+  hitAndRun                   Boolean  @default(false) // V17
+  sequenceOfEvents            String[]           // V18
+  mostHarmfulEvent            String?            // V19
+  contributingCircumstances   String[]           // V20
+
+  // Relations
+  driver                      Driver?
+  persons                     Person[]
+
+  @@index([crashId])
+  @@index([vin])
+}
+
+model Driver {
+  id                    String    @id @default(cuid())
+  vehicleId             String    @unique
+  vehicle               Vehicle   @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  personId              String?   @unique
+  person                Person?   @relation(fields: [personId], references: [id])
+
+  // D-series (NEW in MMUCC 6th Edition)
+  licenseJurisdiction   String?            // D1
+  licenseClass          String?            // D2
+  licenseStatus         String?            // D3
+  speedingRelated       Boolean?           // D4
+  driverActions         String[]           // D5
+  distractedBy          String?            // D6
+  driverCondition       String?            // D7
+  suspectedAlcoholDrug  Boolean?           // D8
+  alcoholDrugTestResults Json?             // D9
+  driverRelatedFactors  String[]           // D10
+}
+
+model Person {
+  id                    String       @id @default(cuid())
+  crashId               String
+  crash                 Crash        @relation(fields: [crashId], references: [id], onDelete: Cascade)
+  vehicleId             String?
+  vehicle               Vehicle?     @relation(fields: [vehicleId], references: [id])
+
+  // P-series
+  name                  String?              // P1 (encrypted at rest, excluded from public API)
+  dateOfBirth           DateTime?            // P2
+  sex                   Sex?                 // P3
+  personType            PersonType           // P4
+  injuryStatus          InjuryStatus?        // P5 (KABCO)
+  motorVehicleUnitNumber Int?                // P6
+  seatingPosition       String?              // P7
+  restraintUse          String?              // P8
+  airBagDeployed        String?              // P9
+  ejection              String?              // P10
+  nonMotoristLocation   String?              // P11
+  nonMotoristAction     String?              // P12
+  nonMotoristCondition  String?              // P13
+  personRelatedFactors  String[]             // P14
+
+  // Reverse relation
+  driver                Driver?
+
+  @@index([crashId])
+  @@index([injuryStatus])
+  @@index([personType])
+}
+
+// ╔══════════════════════════════════════════════════╗
+// ║  INTELLIGENCE: Narratives, Equalizer, Attorneys  ║
+// ╚══════════════════════════════════════════════════╝
+
+model CrashNarrative {
+  id              String    @id @default(cuid())
+  crashId         String    @unique
+  crash           Crash     @relation(fields: [crashId], references: [id], onDelete: Cascade)
+
+  // Structured output (10 sections)
+  content         Json      // CrashNarrativeContent shape
+  summary         String    // 2-3 sentence plain text summary
+
+  // Quality metrics
+  factualAccuracy Float?    // 0-1
+  toneScore       Float?    // 0-1
+  readabilityScore Float?   // Flesch-Kincaid grade level
+  approvalRate    Float?    // from feedback
+
+  // Metadata
+  modelTier       String    // premium | standard | budget
+  modelId         String    // exact model used
+  promptVersion   String?   // links to PromptVersion.id
+  dataTier        String    // RICH | STANDARD | MINIMAL
+  generatedAt     DateTime  @default(now())
+  generationMs    Int?      // latency tracking
+
+  @@index([modelTier])
+  @@index([dataTier])
+}
+
+model CrashEqualizer {
+  id                String    @id @default(cuid())
+  crashId           String    @unique
+  crash             Crash     @relation(fields: [crashId], references: [id], onDelete: Cascade)
+
+  // Comparable Cohort
+  comparableCohort  Json
+  confidenceLevel   String    // HIGH | MEDIUM | LOW
+
+  // Liability Signals
+  liabilitySignals  Json
+
+  // Settlement Context
+  settlementContext Json
+
+  // Attorney Matches
+  attorneyMatches   Json
+
+  // AI Briefing
+  briefingSections  Json
+  disclaimer        String    @default("This analysis is based on public crash data and is not legal advice.")
+
+  // Metadata
+  modelVersion      String
+  generatedAt       DateTime  @default(now())
+  generationMs      Int?
+
+  @@index([confidenceLevel])
+}
+
+model Attorney {
+  id                String    @id @default(cuid())
+  slug              String    @unique
+  name              String
+  firmName          String?
+  phone             String?
+  email             String?
+  website           String?
+  googlePlaceId     String?   @unique
+
+  // Location
+  address           String?
+  city              String?
+  stateCode         String?
+  zipCode           String?
+  latitude          Float?
+  longitude         Float?
+
+  // Specializations
+  practiceAreas     String[]
+  barNumber         String?
+  yearsExperience   Int?
+
+  // Relations
+  reviews           AttorneyReview[]
+  reviewIntelligence ReviewIntelligence?
+  attorneyIndex     AttorneyIndex?
+
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([stateCode])
+  @@index([city])
+  @@index([latitude, longitude])
+}
+
+model AttorneyReview {
+  id              String    @id @default(cuid())
+  attorneyId      String
+  attorney        Attorney  @relation(fields: [attorneyId], references: [id], onDelete: Cascade)
+
+  // Google Places data
+  googleReviewId  String?   @unique
+  authorName      String?
+  rating          Int       // 1-5
+  text            String?
+  publishedAt     DateTime?
+  language        String?   @default("en")
+
+  // Analyzed dimensions
+  dimensions      Json?
+
+  createdAt       DateTime  @default(now())
+
+  @@index([attorneyId])
+  @@index([rating])
+}
+
+model ReviewIntelligence {
+  id              String    @id @default(cuid())
+  attorneyId      String    @unique
+  attorney        Attorney  @relation(fields: [attorneyId], references: [id], onDelete: Cascade)
+
+  // Dimension scores (0-100 each)
+  communication   Float
+  outcome         Float
+  responsiveness  Float
+  empathy         Float
+  expertise       Float
+  feeTransparency Float
+  trialExperience Float
+  satisfaction    Float
+
+  // Trend analysis
+  trend           String    // IMPROVING | STABLE | DECLINING
+  trendPeriodMonths Int     @default(12)
+
+  // Pull quotes
+  bestQuotes      Json
+
+  // Metadata
+  reviewCount     Int
+  analyzedAt      DateTime  @default(now())
+
+  @@index([communication])
+  @@index([outcome])
+}
+
+model AttorneyIndex {
+  id              String    @id @default(cuid())
+  attorneyId      String    @unique
+  attorney        Attorney  @relation(fields: [attorneyId], references: [id], onDelete: Cascade)
+
+  // Composite score (0-100)
+  score           Float
+
+  // Component scores
+  communicationScore  Float
+  responsivenessScore Float
+  outcomeScore        Float
+  reviewCountScore    Float
+  specialtyScore      Float
+
+  // Metadata
+  computedAt      DateTime  @default(now())
+  reviewCount     Int
+  dataQuality     String    // HIGH | MEDIUM | LOW
+
+  @@index([score])
+}
+
+// ╔══════════════════════════════════════════════════╗
+// ║  GEO & INTERSECTIONS                            ║
+// ╚══════════════════════════════════════════════════╝
+
+model GeoEntity {
+  id              String    @id @default(cuid())
+  type            GeoEntityType
+  name            String
+  stateCode       String
+  countyFips      String?
+  cityFips        String?
+  parentId        String?
+  parent          GeoEntity?  @relation("GeoHierarchy", fields: [parentId], references: [id])
+  children        GeoEntity[] @relation("GeoHierarchy")
+  latitude        Float?
+  longitude       Float?
+  population      Int?
+
+  // Legal context
+  statuteOfLimitationsYears Int?
+  faultType       String?
+
+  createdAt       DateTime  @default(now())
+
+  @@unique([type, stateCode, name])
+  @@index([stateCode])
+  @@index([type])
+}
+
+model Intersection {
+  id              String    @id @default(cuid())
+  name            String
+  stateCode       String
+  city            String?
+  latitude        Float
+  longitude       Float
+
+  // Safety metrics
+  dangerScore     Float?
+  totalCrashes    Int       @default(0)
+  fatalCrashes    Int       @default(0)
+  injuryCrashes   Int       @default(0)
+  lastCrashDate   DateTime?
+  lastComputedAt  DateTime?
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@unique([latitude, longitude])
+  @@index([stateCode])
+  @@index([dangerScore])
+}
+
+// ╔══════════════════════════════════════════════════╗
+// ║  DATA PIPELINE                                  ║
+// ╚══════════════════════════════════════════════════╝
+
+model DataSource {
+  id              String    @id @default(cuid())
+  name            String    @unique
+  type            String    // FARS | ARCGIS | SOCRATA | PDF | MANUAL
+  stateCode       String?
+  endpoint        String?
+  config          Json?
+  isActive        Boolean   @default(true)
+  lastFetchedAt   DateTime?
+  lastRecordCount Int?
+  errorCount      Int       @default(0)
+  lastError       String?
+
+  pipelineRuns    PipelineRun[]
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([type])
+  @@index([isActive])
+}
+
+model PipelineRun {
+  id              String    @id @default(cuid())
+  dataSourceId    String
+  dataSource      DataSource @relation(fields: [dataSourceId], references: [id])
+
+  stage           String    // BRONZE | SILVER | GOLD
+  status          String    // RUNNING | COMPLETED | FAILED
+  recordsIn       Int       @default(0)
+  recordsOut      Int       @default(0)
+  recordsFailed   Int       @default(0)
+  errorLog        Json?
+  startedAt       DateTime  @default(now())
+  completedAt     DateTime?
+  durationMs      Int?
+
+  @@index([dataSourceId])
+  @@index([status])
+  @@index([startedAt])
+}
+
+model PipelineDeadLetter {
+  id              String    @id @default(cuid())
+  dataSourceId    String
+  stage           String    // BRONZE | SILVER | GOLD
+  rawRecord       Json
+  error           String
+  errorType       String    // VALIDATION | MAPPING | DUPLICATE | UNKNOWN
+  retryCount      Int       @default(0)
+  resolvedAt      DateTime?
+  createdAt       DateTime  @default(now())
+
+  @@index([dataSourceId])
+  @@index([stage])
+  @@index([errorType])
+}
+
+// ╔══════════════════════════════════════════════════╗
+// ║  VECTOR EMBEDDINGS                              ║
+// ╚══════════════════════════════════════════════════╝
+
+model CrashEmbedding {
+  id              String    @id @default(cuid())
+  crashId         String    @unique
+  embedding       Unsupported("vector(1536)")
+  model           String    @default("text-embedding-3-small")
+  createdAt       DateTime  @default(now())
+
+  // Vector index created via raw SQL migration: CREATE INDEX ON "CrashEmbedding" USING hnsw (embedding vector_cosine_ops)
+}
+
+// ╔══════════════════════════════════════════════════╗
+// ║  CRASH ARCHETYPES                               ║
+// ╚══════════════════════════════════════════════════╝
+
+model CrashArchetype {
+  id                  String    @id @default(cuid())
+  name                String
+  stateCode           String?
+  centroid            Json
+  crashCount          Int
+  avgSeverity         Float
+  injuryRate          Float
+  fatalityRate        Float
+  seasonalPattern     Json
+  definingAttributes  Json
+  crashes             Crash[]
+
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  @@index([stateCode])
+  @@index([crashCount])
+}
+
+// ╔══════════════════════════════════════════════════╗
+// ║  SELF-LEARNING: Feedback, Prompts, Experiments  ║
+// ╚══════════════════════════════════════════════════╝
+
+model FeedbackEvent {
+  id              String    @id @default(cuid())
+  type            String
+  crashId         String?
+  crash           Crash?    @relation(fields: [crashId], references: [id])
+  sessionId       String
+  value           Json
+  experimentId    String?
+  variant         String?
+  createdAt       DateTime  @default(now())
+
+  @@index([type])
+  @@index([crashId])
+  @@index([sessionId])
+  @@index([createdAt])
+  @@index([experimentId])
+}
+
+model FeedbackAggregate {
+  id                    String    @id @default(cuid())
+  period                String    // YYYY-MM-DD
+  crashType             String?
+  severity              String?
+  archetypeId           String?
+
+  narrativeApprovalRate Float
+  equalizerUsefulRate   Float
+  avgTimeOnPage         Float
+  scrollThroughRate     Float
+  attorneyClickRate     Float
+  sampleSize            Int
+
+  createdAt             DateTime  @default(now())
+
+  @@unique([period, crashType, severity])
+  @@index([period])
+}
+
+model PromptVersion {
+  id              String    @id @default(cuid())
+  signature       String
+  version         Int
+  parentId        String?
+  archetypeId     String?
+
+  promptContent   Json
+  mutations       Json?
+  scores          Json?
+  compositeScore  Float?
+
+  isActive        Boolean   @default(false)
+  createdAt       DateTime  @default(now())
+
+  @@unique([signature, version])
+  @@index([signature, isActive])
+  @@index([signature, archetypeId])
+}
+
+model Experiment {
+  id              String    @id @default(cuid())
+  name            String
+  signature       String
+  variants        Json
+  status          String    // RUNNING | COMPLETED | PROMOTED
+  winnerId        String?
+
+  startedAt       DateTime  @default(now())
+  completedAt     DateTime?
+
+  @@index([status])
+  @@index([signature])
+}
+
+// ╔══════════════════════════════════════════════════╗
+// ║  AGENT SYSTEM                                   ║
+// ╚══════════════════════════════════════════════════╝
+
+model AgentSession {
+  id              String    @id @default(cuid())
+  agentId         String
+  action          String
+  input           Json?
+  output          Json?
+  status          String    // SUCCESS | FAILED | SKIPPED
+  durationMs      Int?
+  error           String?
+  createdAt       DateTime  @default(now())
+
+  @@index([agentId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// ╔══════════════════════════════════════════════════╗
+// ║  ENUMS (MMUCC 6th Edition)                      ║
+// ╚══════════════════════════════════════════════════╝
+
+enum CrashSeverity {
+  FATAL
+  SUSPECTED_SERIOUS_INJURY
+  SUSPECTED_MINOR_INJURY
+  POSSIBLE_INJURY
+  PROPERTY_DAMAGE_ONLY
+}
+
+enum InjuryStatus {
+  FATAL
+  SUSPECTED_SERIOUS
+  SUSPECTED_MINOR
+  POSSIBLE
+  NO_APPARENT_INJURY
+}
+
+enum MannerOfCollision {
+  NOT_COLLISION_WITH_MV
+  FRONT_TO_REAR
+  FRONT_TO_FRONT
+  ANGLE
+  SIDESWIPE_SAME_DIRECTION
+  SIDESWIPE_OPPOSITE_DIRECTION
+  REAR_TO_SIDE
+  REAR_TO_REAR
+  OTHER
+  UNKNOWN
+}
+
+enum AtmosphericCondition {
+  CLEAR
+  CLOUDY
+  RAIN
+  SNOW
+  SLEET_HAIL_FREEZING_RAIN
+  FOG_SMOG_SMOKE
+  BLOWING_SNOW
+  BLOWING_SAND_SOIL_DIRT
+  SEVERE_CROSSWINDS
+  OTHER
+  UNKNOWN
+}
+
+enum LightCondition {
+  DAYLIGHT
+  DAWN
+  DUSK
+  DARK_LIGHTED
+  DARK_NOT_LIGHTED
+  DARK_UNKNOWN_LIGHTING
+  OTHER
+  UNKNOWN
+}
+
+enum PersonType {
+  DRIVER
+  PASSENGER
+  PEDESTRIAN
+  PEDALCYCLIST
+  OCCUPANT_OF_NON_MV
+  OTHER
+  UNKNOWN
+}
+
+enum Sex {
+  MALE
+  FEMALE
+  NOT_REPORTED
+  UNKNOWN
+}
+
+enum BodyTypeCategory {
+  PASSENGER_CAR
+  SUV
+  PICKUP
+  VAN
+  LIGHT_TRUCK
+  MEDIUM_HEAVY_TRUCK
+  TRUCK_TRACTOR
+  MOTOR_HOME
+  BUS_SMALL
+  BUS_LARGE
+  MOTORCYCLE
+  MOPED
+  ATV
+  SNOWMOBILE
+  OTHER
+  UNKNOWN
+}
+
+enum GeoEntityType {
+  STATE
+  COUNTY
+  CITY
+  TRACT
+}

@@ -1,0 +1,12 @@
+{
+  "references": [
+    { "path": "packages/shared" },
+    { "path": "packages/db" },
+    { "path": "packages/ai" },
+    { "path": "packages/ui" },
+    { "path": "apps/web" },
+    { "path": "apps/api" },
+    { "path": "apps/pipeline" },
+    { "path": "apps/mcp-server" }
+  ]
+}
