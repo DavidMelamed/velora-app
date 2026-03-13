@@ -8,25 +8,16 @@ interface WhatToDoNextProps {
   severity: string | null | undefined
 }
 
-const priorityStyles: Record<string, { bg: string; border: string; text: string; badge: string }> = {
-  critical: {
-    bg: 'bg-red-50',
-    border: 'border-red-200',
-    text: 'text-red-800',
-    badge: 'bg-red-600 text-white',
-  },
-  important: {
-    bg: 'bg-amber-50',
-    border: 'border-amber-200',
-    text: 'text-amber-800',
-    badge: 'bg-amber-500 text-white',
-  },
-  recommended: {
-    bg: 'bg-blue-50',
-    border: 'border-blue-200',
-    text: 'text-blue-800',
-    badge: 'bg-blue-500 text-white',
-  },
+const priorityStyles: Record<string, string> = {
+  critical: 'bg-red-50 border-red-200 text-red-800',
+  important: 'bg-amber-50 border-amber-200 text-amber-800',
+  recommended: 'bg-blue-50 border-blue-200 text-blue-800',
+}
+
+const badgeStyles: Record<string, string> = {
+  critical: 'bg-red-600 text-white',
+  important: 'bg-amber-500 text-white',
+  recommended: 'bg-blue-500 text-white',
 }
 
 export function WhatToDoNext({ severity }: WhatToDoNextProps) {
@@ -51,6 +42,10 @@ export function WhatToDoNext({ severity }: WhatToDoNextProps) {
           />
         ))}
       </div>
+
+      <p className="mt-4 text-xs text-gray-400">
+        This guidance is for informational purposes only and does not constitute legal advice.
+      </p>
     </div>
   )
 }
@@ -67,11 +62,12 @@ function StepCard({
   onToggle: () => void
 }) {
   const style = priorityStyles[step.priority] || priorityStyles.recommended
+  const badge = badgeStyles[step.priority] || badgeStyles.recommended
 
   return (
     <button
       onClick={onToggle}
-      className={`w-full rounded-lg border text-left transition-all ${style.border} ${style.bg} p-4`}
+      className={`w-full rounded-lg border text-left transition-all ${style} p-4`}
     >
       <div className="flex items-start gap-3">
         <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-gray-200 text-xs font-bold text-gray-600">
@@ -79,12 +75,8 @@ function StepCard({
         </span>
         <div className="flex-1">
           <div className="flex items-center gap-2">
-            <h3 className={`text-sm font-semibold ${style.text}`}>
-              {step.title}
-            </h3>
-            <span
-              className={`rounded-full px-2 py-0.5 text-xs font-medium ${style.badge}`}
-            >
+            <h3 className="text-sm font-semibold">{step.title}</h3>
+            <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${badge}`}>
               {step.priority}
             </span>
           </div>

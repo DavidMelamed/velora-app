@@ -65,6 +65,46 @@ router.get('/:id', async (req, res) => {
   }
 })
 
+// POST /api/crashes/:id/confirm — "I Was In This Crash" confirmation
+router.post('/:id/confirm', async (req, res) => {
+  try {
+    const crashId = req.params.id as string
+
+    const crash = await prisma.crash.findUnique({
+      where: { id: crashId },
+      select: { id: true, confirmationCount: true },
+    })
+
+    if (!crash) {
+      res.status(404).json({ error: 'Crash not found' })
+      return
+    }
+
+    const newCount = crash.confirmationCount + 1
+    const isVerified = newCount >= 3
+
+    await prisma.crash.update({
+      where: { id: crashId },
+      data: { confirmationCount: newCount, isVerified },
+    })
+
+    const { role, description } = (req.body || {}) as { role?: string; description?: string }
+    await prisma.feedbackEvent.create({
+      data: {
+        type: 'CRASH_CONFIRMATION',
+        crashId,
+        sessionId: (req.headers['x-session-id'] as string) || 'anonymous',
+        value: { accurate: true, role: role || 'involved', description: description || '' },
+      },
+    })
+
+    res.json({ success: true, isVerified, confirmationCount: newCount })
+  } catch (error) {
+    console.error('Error confirming crash:', error)
+    res.status(500).json({ error: 'Failed to confirm crash' })
+  }
+})
+
 // POST /api/crashes/:id/generate-narrative — Generate AI narrative for a crash
 router.post('/:id/generate-narrative', async (req, res) => {
   try {

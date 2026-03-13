@@ -39,3 +39,5 @@ packages/db/prisma/migrations/migration_lock.toml
 apps/mobile/.expo/
 apps/mobile/ios/
 apps/mobile/android/
+_gen.js
+_gen_examples.js

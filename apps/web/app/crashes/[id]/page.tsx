@@ -10,6 +10,7 @@ import { GenerateEqualizerButton } from '@/components/crash/GenerateEqualizerBut
 import { CopilotProvider } from '@/components/copilot/CopilotProvider'
 import { CrashPageSidebar } from '@/components/copilot/CrashPageSidebar'
 import { IWasInThisCrash } from '@/components/crash/IWasInThisCrash'
+import { WhatToDoNext } from '@/components/crash/WhatToDoNext'
 import { NarrativeThumbsFeedback } from '@/components/feedback/NarrativeThumbsFeedback'
 import { EqualizerUseful } from '@/components/feedback/EqualizerUseful'
 import { CrashPageFeedbackTracker } from '@/components/feedback/CrashPageFeedbackTracker'
@@ -226,6 +227,9 @@ export default async function CrashPage({ params }: CrashPageProps) {
         <div className="mt-6">
           <IWasInThisCrash crashId={crash.id} isVerified={crash.isVerified} />
         </div>
+
+        {/* What To Do Next */}
+        <WhatToDoNext severity={crash.crashSeverity} />
 
         {/* Equalizer Section */}
         <div className="mt-8">
