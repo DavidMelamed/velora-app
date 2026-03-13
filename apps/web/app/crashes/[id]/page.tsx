@@ -224,7 +224,7 @@ export default async function CrashPage({ params }: CrashPageProps) {
 
         {/* I Was In This Crash */}
         <div className="mt-6">
-          <IWasInThisCrash crashId={crash.id} isVerified={crash.equalizer?.isVerified ?? false} />
+          <IWasInThisCrash crashId={crash.id} isVerified={crash.isVerified} />
         </div>
 
         {/* Equalizer Section */}
