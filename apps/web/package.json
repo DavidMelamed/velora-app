@@ -10,6 +10,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@ai-sdk/anthropic": "^1.2.12",
+    "@ai-sdk/react": "^3.0.118",
     "@payloadcms/db-postgres": "^3.79.0",
     "@payloadcms/next": "^3.79.0",
     "@payloadcms/richtext-lexical": "^3.79.0",
@@ -17,11 +19,13 @@
     "@velora/db": "workspace:*",
     "@velora/shared": "workspace:*",
     "@velora/ui": "workspace:*",
+    "ai": "^4.3.19",
     "clsx": "^2.1.0",
     "next": "^15.3.0",
     "payload": "^3.79.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
+    "recharts": "^3.8.0",
     "tailwind-merge": "^3.0.0"
   },
   "devDependencies": {
