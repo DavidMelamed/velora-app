@@ -6,6 +6,7 @@
 import { prisma } from '@velora/db'
 import { fetchFARSCrashes } from './bronze/sources/fars-adapter'
 import { fetchArcGISCrashes } from './bronze/sources/arcgis-adapter'
+import { fetchSocrataCrashes, getSocrataConfig } from './bronze/sources/socrata-adapter'
 import { mapBronzeToSilver } from './silver/mapper'
 import { writeDeadLetters } from './silver/dead-letter'
 import { publishToGold } from './gold/publisher'
@@ -14,12 +15,14 @@ import { getArcGISConfig } from './config/arcgis-states'
 import type { BronzeRecord } from './bronze/types'
 
 export interface IngestOptions {
-  source: 'fars' | 'arcgis'
+  source: 'fars' | 'arcgis' | 'socrata'
   stateCode: string
   limit: number
   dryRun: boolean
   fromYear?: number
   toYear?: number
+  /** For Socrata: dataset name (e.g. "nyc", "chicago") */
+  socrataDataset?: string
 }
 
 export interface IngestResult {
@@ -95,6 +98,21 @@ export async function runIngestion(options: IngestOptions): Promise<IngestResult
         batchSize: config.batchSize,
         fieldMapping: {},
         limit: options.limit,
+      })
+      for await (const record of gen) {
+        bronzeRecords.push(record)
+        if (bronzeRecords.length >= options.limit) break
+      }
+    } else if (options.source === 'socrata') {
+      const datasetName = options.socrataDataset ?? options.stateCode.toLowerCase()
+      const config = getSocrataConfig(datasetName)
+      if (!config) {
+        throw new Error(`No Socrata config found for dataset "${datasetName}". Available: nyc, chicago`)
+      }
+      const gen = fetchSocrataCrashes({
+        ...config,
+        limit: options.limit,
+        appToken: process.env.SOCRATA_APP_TOKEN,
       })
       for await (const record of gen) {
         bronzeRecords.push(record)

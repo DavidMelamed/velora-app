@@ -12,21 +12,23 @@ program
 program
   .command('ingest')
   .description('Run data ingestion for a source')
-  .requiredOption('-s, --source <source>', 'Data source (fars, arcgis)')
+  .requiredOption('-s, --source <source>', 'Data source (fars, arcgis, socrata)')
   .option('--state <stateCode>', '2-letter state code', 'CO')
   .option('--limit <limit>', 'Max records to ingest', '100')
   .option('--from-year <year>', 'Start year for FARS data')
   .option('--to-year <year>', 'End year for FARS data')
+  .option('--dataset <name>', 'Socrata dataset name (e.g. nyc, chicago)')
   .option('--dry-run', 'Run without writing to Gold database', false)
   .action(async (options) => {
     try {
       const result = await runIngestion({
-        source: options.source as 'fars' | 'arcgis',
+        source: options.source as 'fars' | 'arcgis' | 'socrata',
         stateCode: options.state,
         limit: parseInt(options.limit),
         dryRun: options.dryRun,
         fromYear: options.fromYear ? parseInt(options.fromYear) : undefined,
         toYear: options.toYear ? parseInt(options.toYear) : undefined,
+        socrataDataset: options.dataset,
       })
 
       console.log('\n═══════════════════════════════════')

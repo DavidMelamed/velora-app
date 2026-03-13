@@ -11,6 +11,8 @@ import { parseFARSRecord } from './parsers/fars-parser'
 import type { FARSParsedResult } from './parsers/fars-parser'
 import { parseArcGISRecord } from './parsers/arcgis-parser'
 import type { ArcGISParsedResult } from './parsers/arcgis-parser'
+import { parseSocrataRecord } from './parsers/socrata-parser'
+import type { SocrataParsedResult } from './parsers/socrata-parser'
 import { getArcGISConfig } from '../config/arcgis-states'
 import type { DeadLetterEntry } from './dead-letter'
 
@@ -43,10 +45,23 @@ export function mapBronzeToSilver(records: BronzeRecord[]): MapperResult {
   for (const bronze of records) {
     try {
       // Source-specific parsing
-      let parsed: FARSParsedResult | ArcGISParsedResult | null = null
+      let parsed: FARSParsedResult | ArcGISParsedResult | SocrataParsedResult | null = null
 
       if (bronze.source === 'fars') {
         parsed = parseFARSRecord(bronze)
+      } else if (bronze.source.startsWith('socrata')) {
+        parsed = parseSocrataRecord(bronze)
+        if (!parsed) {
+          deadLetters.push({
+            rawRecord: bronze.rawData,
+            source: bronze.source,
+            stateCode: bronze.stateCode,
+            error: `Socrata parser returned null for source ${bronze.source}`,
+            errorType: 'MAPPING',
+            stage: 'SILVER',
+          })
+          continue
+        }
       } else if (bronze.source.startsWith('arcgis')) {
         const stateCode = bronze.stateCode
         const config = getArcGISConfig(stateCode)
