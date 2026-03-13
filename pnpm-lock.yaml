@@ -192,6 +192,9 @@ importers:
 
   apps/pipeline:
     dependencies:
+      '@velora/ai':
+        specifier: workspace:*
+        version: link:../../packages/ai
       '@velora/db':
         specifier: workspace:*
         version: link:../../packages/db

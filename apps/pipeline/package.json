@@ -10,6 +10,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@velora/ai": "workspace:*",
     "@velora/db": "workspace:*",
     "@velora/shared": "workspace:*",
     "commander": "^13.1.0",

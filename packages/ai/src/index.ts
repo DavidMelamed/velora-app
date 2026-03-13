@@ -51,3 +51,21 @@ export type {
   PersonaAdapterInput,
   PersonaAdapterOutput,
 } from './signatures'
+
+// Optimization (GEPA)
+export { runGEPACycle } from './optimization/gepa-optimizer'
+export type { GEPAConfig, GEPACycleResult } from './optimization/gepa-optimizer'
+export {
+  createPromptVersion,
+  recordScores,
+  promoteVersion,
+  getActiveVersion,
+  getLineage,
+  getVersionHistory,
+  rollbackToVersion,
+} from './optimization/prompt-lineage'
+export type { PromptVersionRecord } from './optimization/prompt-lineage'
+
+// Budget Tracker
+export { budgetTracker, BudgetTracker } from './routing/budget-tracker'
+export type { ModelUsageEntry, DailyBudgetConfig, BudgetStatus } from './routing/budget-tracker'
