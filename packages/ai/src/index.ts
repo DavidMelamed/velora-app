@@ -26,3 +26,28 @@ export type { PersonaType, DetectedPersona, PersonaConfig } from './personas'
 export { getNarrativePrompt, NARRATIVE_SYSTEM_PROMPTS, NARRATIVE_GLOBAL_RULES } from './prompts/narrative-prompts'
 export { classifyDataTier, getDataTierDescription } from './prompts/data-tier'
 export type { DataTier } from './prompts/data-tier'
+
+// Signatures (DSPy-style)
+export {
+  crashNarrativeSignature,
+  CrashNarrativeInputSchema,
+  CrashNarrativeOutputSchema,
+  equalizerBriefingSignature,
+  EqualizerBriefingInputSchema,
+  EqualizerBriefingOutputSchema,
+  personaAdapterSignature,
+  PersonaAdapterInputSchema,
+  PersonaAdapterOutputSchema,
+  narrativeExamples,
+  equalizerExamples,
+  personaExamples,
+  getFormattedExamples,
+} from './signatures'
+export type {
+  CrashNarrativeInput,
+  CrashNarrativeOutput,
+  EqualizerBriefingInput,
+  EqualizerBriefingOutput,
+  PersonaAdapterInput,
+  PersonaAdapterOutput,
+} from './signatures'
