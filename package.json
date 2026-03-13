@@ -24,7 +24,10 @@
     "vitest": "^4.1.0"
   },
   "pnpm": {
-    "overrides": {},
+    "overrides": {
+      "@types/react": "^19.1.0",
+      "@types/react-dom": "^19.1.0"
+    },
     "onlyBuiltDependencies": [
       "@prisma/client",
       "@prisma/engines",

@@ -1,4 +1,4 @@
-import { streamText } from 'ai'
+import { streamText, type LanguageModelV1 } from 'ai'
 import { anthropic } from '@ai-sdk/anthropic'
 import {
   searchCrashesTool,
@@ -44,7 +44,7 @@ Detected persona: ${detected.type} (confidence: ${detected.confidence})
 Tone: ${personaConfig.tone}`
 
   const result = streamText({
-    model: anthropic('claude-sonnet-4-6'),
+    model: anthropic('claude-sonnet-4-6') as unknown as LanguageModelV1,
     system: systemPrompt,
     messages,
     tools: {

@@ -5,6 +5,8 @@ import type { CrashNarrativeContent } from '@velora/shared'
 import { CrashHeader } from '@/components/crash/CrashHeader'
 import { CrashNarrative } from '@/components/crash/CrashNarrative'
 import { CrashMap } from '@/components/crash/CrashMap'
+import { CopilotProvider } from '@/components/copilot/CopilotProvider'
+import { CrashPageSidebar } from '@/components/copilot/CrashPageSidebar'
 
 interface CrashPageProps {
   params: Promise<{ id: string }>
@@ -84,87 +86,105 @@ export default async function CrashPage({ params }: CrashPageProps) {
   const narrativeContent = narrative?.content as unknown as CrashNarrativeContent | undefined
   const location = [crash.streetAddress, crash.cityName, crash.county].filter(Boolean).join(', ')
 
+  const crashContext = {
+    id: crash.id,
+    crashDate: crash.crashDate.toISOString(),
+    location,
+    severity: crash.crashSeverity,
+    stateCode: crash.stateCode,
+    county: crash.county,
+    mannerOfCollision: crash.mannerOfCollision,
+    vehicleCount: crash.vehicles.length,
+    personCount: crash.persons.length,
+    latitude: crash.latitude,
+    longitude: crash.longitude,
+  }
+
   return (
-    <main className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
-      <CrashHeader
-        crashDate={crash.crashDate}
-        location={location}
-        severity={crash.crashSeverity}
-        vehicleCount={crash.vehicles.length}
-        personCount={crash.persons.length}
-        stateCode={crash.stateCode}
-        county={crash.county}
-      />
+    <CopilotProvider>
+      <main className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
+        <CrashHeader
+          crashDate={crash.crashDate}
+          location={location}
+          severity={crash.crashSeverity}
+          vehicleCount={crash.vehicles.length}
+          personCount={crash.persons.length}
+          stateCode={crash.stateCode}
+          county={crash.county}
+        />
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-3">
-        {/* Narrative — main content */}
-        <div className="lg:col-span-2">
-          {narrativeContent ? (
-            <CrashNarrative content={narrativeContent} severity={crash.crashSeverity} />
-          ) : (
-            <div className="rounded-lg border border-gray-200 bg-white p-6">
-              <h2 className="text-lg font-semibold text-gray-900">Crash Details</h2>
-              <p className="mt-2 text-sm text-gray-600">
-                AI-generated narrative is not yet available for this crash.
-                Basic crash data is shown below.
-              </p>
+        <div className="mt-6 grid gap-6 lg:grid-cols-3">
+          {/* Narrative — main content */}
+          <div className="lg:col-span-2">
+            {narrativeContent ? (
+              <CrashNarrative content={narrativeContent} severity={crash.crashSeverity} />
+            ) : (
+              <div className="rounded-lg border border-gray-200 bg-white p-6">
+                <h2 className="text-lg font-semibold text-gray-900">Crash Details</h2>
+                <p className="mt-2 text-sm text-gray-600">
+                  AI-generated narrative is not yet available for this crash.
+                  Basic crash data is shown below.
+                </p>
 
-              <dl className="mt-4 space-y-3">
-                {crash.mannerOfCollision && (
+                <dl className="mt-4 space-y-3">
+                  {crash.mannerOfCollision && (
+                    <DetailItem
+                      label="Collision Type"
+                      value={crash.mannerOfCollision.replace(/_/g, ' ')}
+                    />
+                  )}
+                  {crash.atmosphericCondition && (
+                    <DetailItem
+                      label="Weather"
+                      value={crash.atmosphericCondition.replace(/_/g, ' ')}
+                    />
+                  )}
+                  {crash.lightCondition && (
+                    <DetailItem
+                      label="Lighting"
+                      value={crash.lightCondition.replace(/_/g, ' ')}
+                    />
+                  )}
+                  {crash.vehicles.length > 0 && (
+                    <DetailItem
+                      label="Vehicles"
+                      value={crash.vehicles
+                        .map((v) => [v.modelYear, v.make, v.model].filter(Boolean).join(' ') || 'Unknown vehicle')
+                        .join('; ')}
+                    />
+                  )}
+                </dl>
+              </div>
+            )}
+          </div>
+
+          {/* Sidebar — map and metadata */}
+          <div className="space-y-6">
+            <CrashMap latitude={crash.latitude} longitude={crash.longitude} />
+
+            {/* Quick facts */}
+            <div className="rounded-lg border border-gray-200 bg-white p-4">
+              <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-500">
+                Quick Facts
+              </h3>
+              <dl className="mt-3 space-y-2">
+                <DetailItem label="Report ID" value={crash.stateUniqueId} />
+                <DetailItem label="Data Source" value={crash.dataSource} />
+                {crash.crashTime && <DetailItem label="Time" value={crash.crashTime} />}
+                {crash.intersectionType && (
                   <DetailItem
-                    label="Collision Type"
-                    value={crash.mannerOfCollision.replace(/_/g, ' ')}
-                  />
-                )}
-                {crash.atmosphericCondition && (
-                  <DetailItem
-                    label="Weather"
-                    value={crash.atmosphericCondition.replace(/_/g, ' ')}
-                  />
-                )}
-                {crash.lightCondition && (
-                  <DetailItem
-                    label="Lighting"
-                    value={crash.lightCondition.replace(/_/g, ' ')}
-                  />
-                )}
-                {crash.vehicles.length > 0 && (
-                  <DetailItem
-                    label="Vehicles"
-                    value={crash.vehicles
-                      .map((v) => [v.modelYear, v.make, v.model].filter(Boolean).join(' ') || 'Unknown vehicle')
-                      .join('; ')}
+                    label="Intersection"
+                    value={crash.intersectionType.replace(/_/g, ' ')}
                   />
                 )}
               </dl>
             </div>
-          )}
-        </div>
-
-        {/* Sidebar — map and metadata */}
-        <div className="space-y-6">
-          <CrashMap latitude={crash.latitude} longitude={crash.longitude} />
-
-          {/* Quick facts */}
-          <div className="rounded-lg border border-gray-200 bg-white p-4">
-            <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-500">
-              Quick Facts
-            </h3>
-            <dl className="mt-3 space-y-2">
-              <DetailItem label="Report ID" value={crash.stateUniqueId} />
-              <DetailItem label="Data Source" value={crash.dataSource} />
-              {crash.crashTime && <DetailItem label="Time" value={crash.crashTime} />}
-              {crash.intersectionType && (
-                <DetailItem
-                  label="Intersection"
-                  value={crash.intersectionType.replace(/_/g, ' ')}
-                />
-              )}
-            </dl>
           </div>
         </div>
-      </div>
-    </main>
+      </main>
+
+      <CrashPageSidebar crash={crashContext} />
+    </CopilotProvider>
   )
 }
 
