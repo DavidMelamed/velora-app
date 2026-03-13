@@ -1,0 +1,29 @@
+# Velora — Crash Intelligence Platform
+# Allow all search engines including AI crawlers
+
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /(payload)/
+
+# AI Search Engine Crawlers — explicitly allowed
+User-agent: GPTBot
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: Amazonbot
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: YouBot
+Allow: /
+
+# Sitemaps
+Sitemap: https://velora.com/sitemap.xml
