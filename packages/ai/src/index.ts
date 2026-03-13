@@ -4,6 +4,10 @@ export type { ModelTier, ProviderName } from './gateway'
 
 // Tools
 export {
+  searchCrashesTool,
+  getIntersectionStatsTool,
+  findAttorneysTool,
+  getTrendsTool,
   searchCrashes,
   searchCrashesParameters,
   getIntersectionStats,
