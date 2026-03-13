@@ -9,6 +9,9 @@ import { CrashEqualizer } from '@/components/crash/CrashEqualizer'
 import { GenerateEqualizerButton } from '@/components/crash/GenerateEqualizerButton'
 import { CopilotProvider } from '@/components/copilot/CopilotProvider'
 import { CrashPageSidebar } from '@/components/copilot/CrashPageSidebar'
+import { NarrativeThumbsFeedback } from '@/components/feedback/NarrativeThumbsFeedback'
+import { EqualizerUseful } from '@/components/feedback/EqualizerUseful'
+import { CrashPageFeedbackTracker } from '@/components/feedback/CrashPageFeedbackTracker'
 
 interface CrashPageProps {
   params: Promise<{ id: string }>
@@ -132,7 +135,10 @@ export default async function CrashPage({ params }: CrashPageProps) {
           {/* Narrative — main content */}
           <div className="lg:col-span-2">
             {narrativeContent ? (
-              <CrashNarrative content={narrativeContent} severity={crash.crashSeverity} />
+              <>
+                <CrashNarrative content={narrativeContent} severity={crash.crashSeverity} />
+                <NarrativeThumbsFeedback crashId={crash.id} sessionId={crash.id} />
+              </>
             ) : (
               <div className="rounded-lg border border-gray-200 bg-white p-6">
                 <h2 className="text-lg font-semibold text-gray-900">Crash Details</h2>
@@ -200,10 +206,13 @@ export default async function CrashPage({ params }: CrashPageProps) {
         {/* Equalizer Section */}
         <div className="mt-8">
           {equalizerBriefing ? (
-            <CrashEqualizer
-              briefing={equalizerBriefing}
-              stateCode={crash.stateCode}
-            />
+            <>
+              <CrashEqualizer
+                briefing={equalizerBriefing}
+                stateCode={crash.stateCode}
+              />
+              <EqualizerUseful crashId={crash.id} sessionId={crash.id} />
+            </>
           ) : (
             <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-8 text-center">
               <h2 className="text-lg font-semibold text-gray-900">Crash Equalizer</h2>
@@ -220,6 +229,7 @@ export default async function CrashPage({ params }: CrashPageProps) {
       </main>
 
       <CrashPageSidebar crash={crashContext} />
+      <CrashPageFeedbackTracker crashId={crash.id} />
     </CopilotProvider>
   )
 }
