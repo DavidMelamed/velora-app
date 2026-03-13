@@ -1,22 +1,24 @@
-// Signatures
+// Crash Narrative Signature
 export {
-  crashNarrativeSignature,
   CrashNarrativeInputSchema,
   CrashNarrativeOutputSchema,
+  crashNarrativeSignature,
 } from './crash-narrative'
 export type { CrashNarrativeInput, CrashNarrativeOutput } from './crash-narrative'
 
+// Equalizer Briefing Signature
 export {
-  equalizerBriefingSignature,
   EqualizerBriefingInputSchema,
   EqualizerBriefingOutputSchema,
+  equalizerBriefingSignature,
 } from './equalizer-briefing'
 export type { EqualizerBriefingInput, EqualizerBriefingOutput } from './equalizer-briefing'
 
+// Persona Adapter Signature
 export {
-  personaAdapterSignature,
   PersonaAdapterInputSchema,
   PersonaAdapterOutputSchema,
+  personaAdapterSignature,
 } from './persona-adapter'
 export type { PersonaAdapterInput, PersonaAdapterOutput } from './persona-adapter'
 
