@@ -69,3 +69,6 @@ export type { PromptVersionRecord } from './optimization/prompt-lineage'
 // Budget Tracker
 export { budgetTracker, BudgetTracker } from './routing/budget-tracker'
 export type { ModelUsageEntry, DailyBudgetConfig, BudgetStatus } from './routing/budget-tracker'
+
+// Adaptive Model Router
+export { getAdaptiveModelTier, clearRoutingCache, getCachedDecisions } from './routing/adaptive-router'
