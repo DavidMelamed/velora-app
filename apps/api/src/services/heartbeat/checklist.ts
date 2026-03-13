@@ -145,6 +145,9 @@ async function checkApiHealth(): Promise<HeartbeatCheckResult> {
   }
 }
 
+// ─── Content Skills (Phase 6) ───────────────────────────────────────────────────
+import { contentHeartbeatChecks } from './content-skills'
+
 // ─── Exported Checklist ─────────────────────────────────────────────────────────
 
 export const heartbeatChecks: HeartbeatCheck[] = [
@@ -184,4 +187,6 @@ export const heartbeatChecks: HeartbeatCheck[] = [
     dispatchTo: 'healer',
     check: checkApiHealth,
   },
+  // Content generation skills (Phase 6)
+  ...contentHeartbeatChecks,
 ]

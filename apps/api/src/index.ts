@@ -10,6 +10,7 @@ import attorneyRoutes from './routes/attorneys'
 import searchRoutes from './routes/search'
 import feedbackRoutes from './routes/feedback'
 import pipelineRoutes from './routes/pipeline'
+import learningMetricsRoutes from './routes/admin/learning-metrics'
 
 const app = express()
 const PORT = process.env.PORT || 4000
@@ -27,6 +28,7 @@ app.use('/api/attorneys', readLimiter, attorneyRoutes)
 app.use('/api/search', readLimiter, searchRoutes)
 app.use('/api/feedback', writeLimiter, feedbackRoutes)
 app.use('/api/pipeline', authLimiter, pipelineRoutes)
+app.use('/api/admin/learning', authLimiter, learningMetricsRoutes)
 
 // Error handler (must be last)
 app.use(errorHandler)

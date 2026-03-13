@@ -1,7 +1,7 @@
 'use client'
 
 import type { ResolvedSegments } from '@/lib/seo/resolve-segments'
-import { ATTRIBUTE_DISPLAY_NAMES, CRASH_ATTRIBUTES, type CrashAttribute } from '@/lib/seo/resolve-segments'
+import { ATTRIBUTE_DISPLAY_NAMES, type CrashAttribute } from '@/lib/seo/resolve-segments'
 
 interface AttributeStats {
   totalCrashes: number
