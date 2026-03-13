@@ -1,10 +1,12 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { prisma } from '@velora/db'
-import type { CrashNarrativeContent } from '@velora/shared'
+import type { CrashNarrativeContent, EqualizerBriefing, ComparableCohort, LiabilitySignal, SettlementContext, AttorneyMatch } from '@velora/shared'
 import { CrashHeader } from '@/components/crash/CrashHeader'
 import { CrashNarrative } from '@/components/crash/CrashNarrative'
 import { CrashMap } from '@/components/crash/CrashMap'
+import { CrashEqualizer } from '@/components/crash/CrashEqualizer'
+import { GenerateEqualizerButton } from '@/components/crash/GenerateEqualizerButton'
 import { CopilotProvider } from '@/components/copilot/CopilotProvider'
 import { CrashPageSidebar } from '@/components/copilot/CrashPageSidebar'
 
@@ -32,6 +34,7 @@ async function getCrash(id: string) {
         take: 1,
         orderBy: { generatedAt: 'desc' },
       },
+      equalizer: true,
     },
   })
 
@@ -85,6 +88,18 @@ export default async function CrashPage({ params }: CrashPageProps) {
   const narrative = crash.narratives[0]
   const narrativeContent = narrative?.content as unknown as CrashNarrativeContent | undefined
   const location = [crash.streetAddress, crash.cityName, crash.county].filter(Boolean).join(', ')
+
+  // Build equalizer briefing from DB data if available
+  const equalizerData = crash.equalizer
+  const equalizerBriefing: EqualizerBriefing | null = equalizerData
+    ? {
+        comparable: equalizerData.comparableCohort as unknown as ComparableCohort,
+        liability: equalizerData.liabilitySignals as unknown as LiabilitySignal[],
+        settlement: equalizerData.settlementContext as unknown as SettlementContext,
+        attorneyMatches: equalizerData.attorneyMatches as unknown as AttorneyMatch[],
+        sections: equalizerData.briefingSections as unknown as EqualizerBriefing['sections'],
+      }
+    : null
 
   const crashContext = {
     id: crash.id,
@@ -180,6 +195,27 @@ export default async function CrashPage({ params }: CrashPageProps) {
               </dl>
             </div>
           </div>
+        </div>
+
+        {/* Equalizer Section */}
+        <div className="mt-8">
+          {equalizerBriefing ? (
+            <CrashEqualizer
+              briefing={equalizerBriefing}
+              stateCode={crash.stateCode}
+            />
+          ) : (
+            <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-8 text-center">
+              <h2 className="text-lg font-semibold text-gray-900">Crash Equalizer</h2>
+              <p className="mt-2 text-sm text-gray-500">
+                Get a personalized briefing with comparable crashes, liability signals,
+                settlement estimates, and attorney recommendations.
+              </p>
+              <div className="mt-4">
+                <GenerateEqualizerButton crashId={crash.id} />
+              </div>
+            </div>
+          )}
         </div>
       </main>
 
