@@ -75,15 +75,15 @@ export const ATTRIBUTE_FILTERS: Record<CrashAttribute, Record<string, unknown>> 
   't-bone': { mannerOfCollision: 'ANGLE' },
   'rollover': { firstHarmfulEvent: 'ROLLOVER' },
   'pedestrian': { persons: { some: { personType: 'PEDESTRIAN' } } },
-  'bicycle': { persons: { some: { personType: 'BICYCLIST' } } },
+  'bicycle': { persons: { some: { personType: 'PEDALCYCLIST' } } },
   'motorcycle': { vehicles: { some: { bodyType: 'MOTORCYCLE' } } },
-  'hit-and-run': { hitAndRun: true },
-  'dui': { vehicles: { some: { driver: { drinkingStatus: 'YES' } } } },
+  'hit-and-run': { vehicles: { some: { hitAndRun: true } } },
+  'dui': { vehicles: { some: { driver: { suspectedAlcoholDrug: true } } } },
   'fatal': { crashSeverity: 'FATAL' },
-  'multi-vehicle': { numberOfVehicles: { gte: 3 } },
-  'single-vehicle': { numberOfVehicles: 1 },
-  'intersection': { intersectionType: { not: 'NOT_AN_INTERSECTION' } },
-  'highway': { roadwayFunctionalClass: 'INTERSTATE' },
+  'multi-vehicle': { vehicles: { some: {} } },
+  'single-vehicle': { vehicles: { some: {} } },
+  'intersection': { intersectionType: { not: null } },
+  'highway': { firstHarmfulEvent: { contains: 'HIGHWAY' } },
 }
 
 /**
