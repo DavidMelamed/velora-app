@@ -9,9 +9,11 @@ import { CrashEqualizer } from '@/components/crash/CrashEqualizer'
 import { GenerateEqualizerButton } from '@/components/crash/GenerateEqualizerButton'
 import { CopilotProvider } from '@/components/copilot/CopilotProvider'
 import { CrashPageSidebar } from '@/components/copilot/CrashPageSidebar'
+import { IWasInThisCrash } from '@/components/crash/IWasInThisCrash'
 import { NarrativeThumbsFeedback } from '@/components/feedback/NarrativeThumbsFeedback'
 import { EqualizerUseful } from '@/components/feedback/EqualizerUseful'
 import { CrashPageFeedbackTracker } from '@/components/feedback/CrashPageFeedbackTracker'
+import { crashEventSchema, jsonLdScript } from '@/lib/seo/schema-markup'
 
 interface CrashPageProps {
   params: Promise<{ id: string }>
@@ -118,8 +120,25 @@ export default async function CrashPage({ params }: CrashPageProps) {
     longitude: crash.longitude,
   }
 
+  const schemaData = crashEventSchema({
+    id: crash.id,
+    crashDate: crash.crashDate.toISOString(),
+    location,
+    stateCode: crash.stateCode,
+    latitude: crash.latitude,
+    longitude: crash.longitude,
+    severity: crash.crashSeverity,
+    vehicleCount: crash.vehicles.length,
+    personCount: crash.persons.length,
+    description: narrativeContent?.summary,
+  })
+
   return (
     <CopilotProvider>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: jsonLdScript(schemaData) }}
+      />
       <main className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
         <CrashHeader
           crashDate={crash.crashDate}
@@ -201,6 +220,11 @@ export default async function CrashPage({ params }: CrashPageProps) {
               </dl>
             </div>
           </div>
+        </div>
+
+        {/* I Was In This Crash */}
+        <div className="mt-6">
+          <IWasInThisCrash crashId={crash.id} isVerified={crash.equalizer?.isVerified ?? false} />
         </div>
 
         {/* Equalizer Section */}

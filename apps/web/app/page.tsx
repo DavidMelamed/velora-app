@@ -2,6 +2,7 @@ import { Suspense } from 'react'
 import { HeroSearch } from '@/components/home/HeroSearch'
 import { RecentCrashes } from '@/components/home/RecentCrashes'
 import { StatsBar } from '@/components/home/StatsBar'
+import { websiteSchema, jsonLdScript } from '@/lib/seo/schema-markup'
 
 const STEPS = [
   {
@@ -22,8 +23,14 @@ const STEPS = [
 ]
 
 export default function HomePage() {
+  const siteSchema = websiteSchema()
+
   return (
     <main className="min-h-screen">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: jsonLdScript(siteSchema) }}
+      />
       {/* Hero */}
       <section className="flex flex-col items-center justify-center px-4 pb-16 pt-24">
         <h1 className="mb-4 max-w-3xl text-center text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl">

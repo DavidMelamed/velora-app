@@ -2,6 +2,11 @@
 
 import type { ResolvedSegments } from '@/lib/seo/resolve-segments'
 import { ATTRIBUTE_DISPLAY_NAMES, type CrashAttribute } from '@/lib/seo/resolve-segments'
+import {
+  datasetSchema,
+  faqPageSchema,
+  jsonLdScript,
+} from '@/lib/seo/schema-markup'
 
 interface CrashStats {
   totalCrashes: number
@@ -32,8 +37,42 @@ export function LocationPage({ resolved, stats }: LocationPageProps) {
     ? ATTRIBUTE_DISPLAY_NAMES[resolved.attribute as CrashAttribute]
     : null
 
+  const faqs = [
+    {
+      question: `How many car crashes have been reported in ${location}?`,
+      answer: `Velora has recorded ${stats.totalCrashes.toLocaleString()} crashes in ${location}, including ${stats.fatalCrashes.toLocaleString()} fatal crashes. Data is updated regularly from official state sources.`,
+    },
+    {
+      question: `What is the Crash Equalizer and how does it help after an accident in ${location}?`,
+      answer: `The Crash Equalizer is Velora's free tool that analyzes your crash against similar incidents in ${location}. It provides settlement range estimates, liability signals, and connects you with top-rated local attorneys.`,
+    },
+    {
+      question: `How do I find a good personal injury attorney in ${location}?`,
+      answer: `Velora's Attorney Index ranks attorneys based on 8 dimensions of client review analysis including communication, outcomes, and responsiveness. Search our attorney directory to find top-rated attorneys near you.`,
+    },
+    {
+      question: `What should I do after a car accident in ${location}?`,
+      answer: `After a crash, ensure everyone's safety and call 911. Document the scene, exchange information, and seek medical attention. Then use Velora to search your crash report, get your Crash Equalizer briefing, and connect with a qualified attorney.`,
+    },
+  ]
+  const faqSchemaData = faqPageSchema(faqs)
+  const dsSchema = datasetSchema({
+    name: `Car Crash Data for ${location}`,
+    description: `Comprehensive crash statistics and records for ${location}.`,
+    url: `/crashes/${resolved.stateName.toLowerCase().replace(/\s+/g, '-')}${resolved.city ? `/${resolved.city.replace(/\s+/g, '-')}` : ''}`,
+    spatialCoverage: location,
+  })
+
   return (
     <div className="mx-auto max-w-5xl px-4 py-8">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: jsonLdScript(faqSchemaData) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: jsonLdScript(dsSchema) }}
+      />
       {/* Header */}
       <header className="mb-8">
         <nav className="mb-4 text-sm text-gray-500">
@@ -190,6 +229,28 @@ export function LocationPage({ resolved, stats }: LocationPageProps) {
           </div>
         </section>
       )}
+
+      {/* FAQ Section */}
+      <section className="mb-8">
+        <h2 className="mb-4 text-xl font-semibold text-gray-900 dark:text-white">
+          Frequently Asked Questions
+        </h2>
+        <div className="space-y-4">
+          {faqs.map((faq, i) => (
+            <details
+              key={i}
+              className="group rounded-lg border border-gray-200 dark:border-gray-700"
+            >
+              <summary className="cursor-pointer px-4 py-3 font-medium text-gray-900 dark:text-white">
+                {faq.question}
+              </summary>
+              <p className="px-4 pb-4 text-sm text-gray-600 dark:text-gray-400">
+                {faq.answer}
+              </p>
+            </details>
+          ))}
+        </div>
+      </section>
 
       {/* CTA */}
       <section className="rounded-xl border border-gray-200 bg-gray-50 p-8 text-center dark:border-gray-700 dark:bg-gray-900">
