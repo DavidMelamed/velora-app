@@ -1,0 +1,20 @@
+{
+  "name": "Velora Crash Intelligence",
+  "description": "Search crash records, analyze intersections, find attorneys, generate Equalizer briefings",
+  "url": "https://api.velora.app/mcp",
+  "transport": "streamable-http",
+  "tools": [
+    "search_crashes",
+    "get_crash_details",
+    "get_nearby_crashes",
+    "get_intersection_safety",
+    "get_dangerous_intersections",
+    "find_attorneys",
+    "get_attorney_profile",
+    "compare_attorneys",
+    "generate_equalizer",
+    "get_equalizer",
+    "get_crash_trends",
+    "get_seasonal_patterns"
+  ]
+}
