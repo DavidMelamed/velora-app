@@ -27,7 +27,7 @@ export function WhatToDoNext({ severity }: WhatToDoNextProps) {
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-6">
       <h2 className="text-lg font-semibold text-gray-900">What To Do Next</h2>
-      <p className="mt-1 text-sm text-gray-500">{guidance.urgencyMessage}</p>
+      <p className="mt-1 text-sm text-gray-500">{guidance.headline}</p>
 
       <div className="mt-4 space-y-3">
         {guidance.steps.map((step, index) => (

@@ -19,7 +19,7 @@ export function WhatToDoNext({ severity }: WhatToDoNextProps) {
   return (
     <View style={styles.container}>
       <Text style={styles.headline}>What To Do Next</Text>
-      <Text style={styles.subtitle}>{guidance.urgencyMessage}</Text>
+      <Text style={styles.subtitle}>{guidance.headline}</Text>
 
       <View style={styles.stepsContainer}>
         {guidance.steps.map((step, idx) => (
