@@ -1,3 +1,4 @@
+import type { RequestHandler } from 'express'
 import { rateLimit } from 'express-rate-limit'
 import { RedisStore } from 'rate-limit-redis'
 import { getRedis } from '../lib/redis'
@@ -6,7 +7,7 @@ import { getRedis } from '../lib/redis'
  * Create a rate limiter with optional Redis backing store.
  * Falls back to in-memory store if Redis is unavailable.
  */
-function createLimiter(windowMs: number, max: number, message: string) {
+function createLimiter(windowMs: number, max: number, message: string): RequestHandler {
   const redis = getRedis()
   const store = redis
     ? new RedisStore({
@@ -21,7 +22,7 @@ function createLimiter(windowMs: number, max: number, message: string) {
     legacyHeaders: false,
     message: { error: message },
     store,
-  })
+  }) as unknown as RequestHandler
 }
 
 /** Auth endpoints: 5 requests per minute */

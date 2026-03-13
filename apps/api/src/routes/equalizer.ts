@@ -1,4 +1,4 @@
-import { Router } from 'express'
+import { Router, type RequestHandler } from 'express'
 import { rateLimit } from 'express-rate-limit'
 import { generateEqualizerBriefing, getCachedBriefing } from '../services/equalizer/briefing-generator'
 
@@ -11,7 +11,7 @@ const generateLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many Equalizer generation requests, please try again later' },
-})
+}) as unknown as RequestHandler
 
 // GET /api/equalizer/:crashId — Read cached briefing (public)
 router.get('/:crashId', async (req, res, next) => {

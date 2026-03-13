@@ -10,6 +10,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@mastra/core": "^1.13.2",
     "@velora/ai": "workspace:*",
     "@velora/db": "workspace:*",
     "@velora/shared": "workspace:*",
@@ -20,7 +21,8 @@
     "helmet": "^8.1.0",
     "ioredis": "^5.10.0",
     "ml-kmeans": "^7.0.0",
-    "rate-limit-redis": "^4.3.1"
+    "rate-limit-redis": "^4.3.1",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@types/cors": "^2.8.17",
