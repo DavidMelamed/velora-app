@@ -1,8 +1,9 @@
 'use client'
 
 import { useChat } from '@ai-sdk/react'
+import type { Message } from 'ai'
 import { useSearchParams } from 'next/navigation'
-import { useEffect, useRef, Suspense } from 'react'
+import { useCallback, useEffect, useRef, Suspense } from 'react'
 import { CrashResultsMap } from './CrashResultsMap'
 import { IntersectionCard } from './IntersectionCard'
 import { AttorneyGrid } from './AttorneyGrid'
@@ -57,10 +58,43 @@ function SearchInterfaceInner() {
   const inputRef = useRef<HTMLInputElement>(null)
   const hasSentInitial = useRef(false)
 
-  const { messages, input, handleInputChange, handleSubmit, isLoading, append } = useChat({
+  // Restore messages from sessionStorage
+  const getStoredMessages = useCallback((): Message[] | undefined => {
+    if (typeof window === 'undefined') return undefined
+    try {
+      const stored = sessionStorage.getItem('velora-search-messages')
+      if (stored) return JSON.parse(stored) as Message[]
+    } catch {
+      // ignore parse errors
+    }
+    return undefined
+  }, [])
+
+  const { messages, input, handleInputChange, handleSubmit, isLoading, append, setMessages } = useChat({
     api: '/api/search',
     id: 'velora-search',
+    initialMessages: getStoredMessages(),
+    maxSteps: 8,
   })
+
+  // Persist messages to sessionStorage
+  useEffect(() => {
+    if (typeof window !== 'undefined' && messages.length > 0) {
+      try {
+        sessionStorage.setItem('velora-search-messages', JSON.stringify(messages))
+      } catch {
+        // ignore storage errors
+      }
+    }
+  }, [messages])
+
+  // Clear conversation
+  const clearConversation = useCallback(() => {
+    setMessages([])
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('velora-search-messages')
+    }
+  }, [setMessages])
 
   // Send initial query from URL param
   useEffect(() => {
@@ -75,8 +109,46 @@ function SearchInterfaceInner() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
+  // Context-aware follow-up suggestions based on last tool used
+  const getFollowUpSuggestions = useCallback(() => {
+    const lastAssistant = [...messages].reverse().find((m) => m.role === 'assistant')
+    if (!lastAssistant) return ['Show me recent crashes', 'Find attorneys near me', 'Show crash trends']
+
+    const parts = lastAssistant.parts ?? []
+    const toolNames = parts
+      .filter((p): p is Extract<typeof p, { type: 'tool-invocation' }> => p.type === 'tool-invocation')
+      .map((p) => p.toolInvocation.toolName)
+
+    if (toolNames.includes('searchCrashes')) {
+      return ['Show these on a map', 'Find attorneys for this area', 'What are the trends?', 'Filter by severity']
+    }
+    if (toolNames.includes('getIntersectionStats')) {
+      return ['Show recent crashes here', 'Find attorneys nearby', 'Compare with other intersections']
+    }
+    if (toolNames.includes('findAttorneys')) {
+      return ['Show their reviews', 'Search crashes in this area', 'Compare top attorneys']
+    }
+    if (toolNames.includes('getTrends')) {
+      return ['Show the raw data', 'Compare with another state', 'What causes these patterns?']
+    }
+    return ['Show more details', 'Find attorneys nearby', 'Show trends for this area']
+  }, [messages])
+
   return (
     <div className="flex h-[calc(100vh-4rem)] flex-col">
+      {/* Clear button */}
+      {messages.length > 0 && (
+        <div className="flex justify-end px-4 pt-2">
+          <button
+            type="button"
+            onClick={clearConversation}
+            className="text-xs text-gray-400 transition-colors hover:text-gray-600 dark:hover:text-gray-300"
+          >
+            Clear conversation
+          </button>
+        </div>
+      )}
+
       {/* Messages area */}
       <div className="flex-1 overflow-y-auto px-4 py-6">
         <div className="mx-auto max-w-3xl">
@@ -164,23 +236,21 @@ function SearchInterfaceInner() {
             </div>
           ))}
 
-          {/* Follow-up suggestions after response */}
+          {/* Context-aware follow-up suggestions */}
           {messages.length > 0 &&
             !isLoading &&
             messages[messages.length - 1]?.role === 'assistant' && (
               <div className="mb-6 flex flex-wrap gap-2">
-                {['Show more details', 'Find attorneys nearby', 'Show trends for this area'].map(
-                  (s) => (
-                    <button
-                      key={s}
-                      type="button"
-                      onClick={() => append({ role: 'user', content: s })}
-                      className="rounded-full border border-gray-200 px-3 py-1.5 text-xs text-gray-500 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800"
-                    >
-                      {s}
-                    </button>
-                  )
-                )}
+                {getFollowUpSuggestions().map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => append({ role: 'user', content: s })}
+                    className="rounded-full border border-gray-200 px-3 py-1.5 text-xs text-gray-500 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800"
+                  >
+                    {s}
+                  </button>
+                ))}
               </div>
             )}
 

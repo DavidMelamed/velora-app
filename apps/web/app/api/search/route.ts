@@ -53,7 +53,7 @@ Tone: ${personaConfig.tone}`
       findAttorneys: findAttorneysTool,
       getTrends: getTrendsTool,
     },
-    maxSteps: 5,
+    maxSteps: 8,
   })
 
   return result.toDataStreamResponse()
