@@ -1,150 +1,88 @@
-import { useState } from 'react'
-import {
-  View,
-  Text,
-  StyleSheet,
-  Pressable,
-  TextInput,
-  ActivityIndicator,
-} from 'react-native'
-import { colors, spacing, fontSize, borderRadius } from '../lib/theme'
-import { api } from '../lib/api'
+import { useState } from "react"
+import { View, Text, StyleSheet, Pressable, TextInput } from "react-native"
+import { colors, spacing, fontSize, borderRadius } from "../lib/theme"
+import { api } from "../lib/api"
 
 interface IWasInThisCrashProps {
   crashId: string
   isVerified?: boolean
 }
 
-type Step = 'confirm' | 'details' | 'thankyou'
-
-const ROLES = [
-  { label: 'Driver', value: 'driver' },
-  { label: 'Passenger', value: 'passenger' },
-  { label: 'Pedestrian', value: 'pedestrian' },
-  { label: 'Cyclist', value: 'cyclist' },
-  { label: 'Witness', value: 'witness' },
-]
+type Step = "initial" | "details" | "thankyou"
 
 export function IWasInThisCrash({ crashId, isVerified }: IWasInThisCrashProps) {
-  const [step, setStep] = useState<Step>('confirm')
-  const [selectedRole, setSelectedRole] = useState<string | null>(null)
-  const [description, setDescription] = useState('')
+  const [step, setStep] = useState<Step>("initial")
+  const [role, setRole] = useState("")
+  const [description, setDescription] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [resultVerified, setResultVerified] = useState(isVerified || false)
 
-  if (isVerified) {
+  if (resultVerified && step === "initial") {
     return (
-      <View style={styles.verifiedBanner}>
-        <Text style={styles.verifiedIcon}>✓</Text>
-        <Text style={styles.verifiedText}>
-          Verified by a person involved in this crash
-        </Text>
+      <View style={styles.verifiedBadge}>
+        <Text style={styles.verifiedText}>Verified by community</Text>
       </View>
     )
-  }
-
-  const handleConfirm = () => {
-    setStep('details')
   }
 
   const handleSubmit = async () => {
     setIsSubmitting(true)
     try {
-      await api.confirmCrash(crashId, {
-        role: selectedRole || undefined,
-        description: description || undefined,
-      })
+      const result = await api.confirmCrash(crashId, { role, description })
+      if (result.isVerified) setResultVerified(true)
+      setStep("thankyou")
     } catch {
-      // Still show thank you
+      setStep("thankyou")
+    } finally {
+      setIsSubmitting(false)
     }
-    setIsSubmitting(false)
-    setStep('thankyou')
-  }
-
-  const handleSkip = async () => {
-    setIsSubmitting(true)
-    try {
-      await api.confirmCrash(crashId)
-    } catch {
-      // Ignore
-    }
-    setIsSubmitting(false)
-    setStep('thankyou')
   }
 
   return (
     <View style={styles.container}>
-      {step === 'confirm' && (
-        <View style={styles.centered}>
+      {step === "initial" && (
+        <View style={styles.centerContent}>
           <Text style={styles.title}>Were you involved in this crash?</Text>
-          <Text style={styles.subtitle}>
-            Your confirmation helps verify crash data for everyone.
-          </Text>
-          <Pressable style={styles.primaryButton} onPress={handleConfirm}>
-            <Text style={styles.primaryButtonText}>I was in this crash</Text>
+          <Text style={styles.subtitle}>Help verify this report and connect with resources.</Text>
+          <Pressable style={styles.primaryButton} onPress={() => setStep("details")}>
+            <Text style={styles.primaryButtonText}>I Was In This Crash</Text>
           </Pressable>
         </View>
       )}
 
-      {step === 'details' && (
+      {step === "details" && (
         <View>
-          <Text style={styles.title}>Optional Details</Text>
-          <Text style={styles.subtitle}>
-            This helps improve our data. No personal information is stored.
-          </Text>
-
-          <Text style={styles.label}>Your role</Text>
-          <View style={styles.roleRow}>
-            {ROLES.map((role) => (
-              <Pressable
-                key={role.value}
-                style={[
-                  styles.roleChip,
-                  selectedRole === role.value && styles.roleChipSelected,
-                ]}
-                onPress={() =>
-                  setSelectedRole(
-                    selectedRole === role.value ? null : role.value
-                  )
-                }
-              >
-                <Text
-                  style={[
-                    styles.roleChipText,
-                    selectedRole === role.value && styles.roleChipTextSelected,
-                  ]}
-                >
-                  {role.label}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-
-          <Text style={styles.label}>Anything to add? (optional)</Text>
+          <Text style={styles.title}>Optional: Share Details</Text>
+          <Text style={styles.subtitle}>This helps improve our data accuracy.</Text>
           <TextInput
-            style={styles.textArea}
+            style={styles.input}
+            placeholder="Your role (driver, passenger, witness...)"
+            placeholderTextColor={colors.text.muted}
+            value={role}
+            onChangeText={setRole}
+          />
+          <TextInput
+            style={[styles.input, styles.textArea]}
+            placeholder="Anything to add? (optional)"
+            placeholderTextColor={colors.text.muted}
             value={description}
             onChangeText={setDescription}
-            placeholder="Road conditions, what happened, etc."
-            placeholderTextColor={colors.text.muted}
             multiline
             numberOfLines={3}
           />
-
           <View style={styles.buttonRow}>
             <Pressable
-              style={[styles.primaryButton, { flex: 1 }]}
+              style={[styles.primaryButton, isSubmitting && styles.disabled]}
               onPress={handleSubmit}
               disabled={isSubmitting}
             >
-              {isSubmitting ? (
-                <ActivityIndicator color={colors.text.inverse} size="small" />
-              ) : (
-                <Text style={styles.primaryButtonText}>Submit</Text>
-              )}
+              <Text style={styles.primaryButtonText}>
+                {isSubmitting ? "Submitting..." : "Submit"}
+              </Text>
             </Pressable>
             <Pressable
-              style={[styles.secondaryButton, { flex: 0 }]}
-              onPress={handleSkip}
+              style={styles.secondaryButton}
+              onPress={handleSubmit}
               disabled={isSubmitting}
             >
               <Text style={styles.secondaryButtonText}>Skip</Text>
@@ -153,22 +91,16 @@ export function IWasInThisCrash({ crashId, isVerified }: IWasInThisCrashProps) {
         </View>
       )}
 
-      {step === 'thankyou' && (
-        <View style={styles.centered}>
-          <View style={styles.checkCircle}>
-            <Text style={styles.checkMark}>✓</Text>
-          </View>
-          <Text style={styles.title}>Thank you</Text>
+      {step === "thankyou" && (
+        <View style={styles.centerContent}>
+          <Text style={styles.thankYouTitle}>Thank you for confirming</Text>
           <Text style={styles.subtitle}>
-            Your confirmation has been recorded.
+            Your input helps make crash data more accurate for everyone.
           </Text>
-
-          <View style={styles.equalizerCta}>
-            <Text style={styles.equalizerTitle}>
-              Get your free Crash Equalizer
-            </Text>
-            <Text style={styles.equalizerSubtitle}>
-              See comparable crashes, liability signals, and settlement context.
+          <View style={styles.ctaCard}>
+            <Text style={styles.ctaTitle}>Get your Crash Equalizer briefing</Text>
+            <Text style={styles.ctaSubtitle}>
+              See comparable crashes, settlement estimates, and attorney recommendations.
             </Text>
           </View>
         </View>
@@ -179,157 +111,62 @@ export function IWasInThisCrash({ crashId, isVerified }: IWasInThisCrashProps) {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: colors.card,
-    borderRadius: borderRadius.xl,
-    borderWidth: 1,
-    borderColor: colors.border,
+    backgroundColor: colors.primaryLight,
+    borderRadius: borderRadius.lg,
     padding: spacing.lg,
+    marginTop: spacing.md,
   },
-  centered: {
-    alignItems: 'center',
-  },
-  title: {
-    fontSize: fontSize.lg,
-    fontWeight: '600',
-    color: colors.text.primary,
-    textAlign: 'center',
-  },
-  subtitle: {
-    fontSize: fontSize.sm,
-    color: colors.text.secondary,
-    textAlign: 'center',
-    marginTop: spacing.xs,
-    marginBottom: spacing.md,
-  },
+  centerContent: { alignItems: "center" },
+  title: { fontSize: fontSize.lg, fontWeight: "600", color: colors.text.primary },
+  subtitle: { fontSize: fontSize.sm, color: colors.text.secondary, marginTop: spacing.xs, textAlign: "center" },
   primaryButton: {
     backgroundColor: colors.primary,
-    paddingVertical: spacing.sm + 2,
-    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.xl,
     borderRadius: borderRadius.lg,
-    alignItems: 'center',
+    marginTop: spacing.md,
   },
-  primaryButtonText: {
-    color: colors.text.inverse,
-    fontSize: fontSize.sm,
-    fontWeight: '600',
-  },
+  primaryButtonText: { color: colors.text.inverse, fontWeight: "600", fontSize: fontSize.sm },
   secondaryButton: {
     borderWidth: 1,
     borderColor: colors.border,
-    paddingVertical: spacing.sm + 2,
-    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.xl,
     borderRadius: borderRadius.lg,
-    alignItems: 'center',
-  },
-  secondaryButtonText: {
-    color: colors.text.primary,
-    fontSize: fontSize.sm,
-    fontWeight: '600',
-  },
-  label: {
-    fontSize: fontSize.sm,
-    fontWeight: '500',
-    color: colors.text.primary,
     marginTop: spacing.md,
-    marginBottom: spacing.xs,
   },
-  roleRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.xs,
-  },
-  roleChip: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs + 2,
-    borderRadius: borderRadius.full,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-  },
-  roleChipSelected: {
-    backgroundColor: colors.primaryLight,
-    borderColor: colors.primary,
-  },
-  roleChipText: {
-    fontSize: fontSize.xs,
-    color: colors.text.secondary,
-  },
-  roleChipTextSelected: {
-    color: colors.primary,
-    fontWeight: '600',
-  },
-  textArea: {
+  secondaryButtonText: { color: colors.text.secondary, fontSize: fontSize.sm },
+  disabled: { opacity: 0.5 },
+  input: {
+    backgroundColor: colors.background,
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: borderRadius.md,
     padding: spacing.sm,
+    marginTop: spacing.sm,
     fontSize: fontSize.sm,
     color: colors.text.primary,
-    minHeight: 80,
-    textAlignVertical: 'top',
   },
-  buttonRow: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    marginTop: spacing.md,
-  },
-  checkCircle: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#dcfce7',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.sm,
-  },
-  checkMark: {
-    fontSize: 20,
-    color: colors.success,
-  },
-  equalizerCta: {
-    backgroundColor: colors.primaryLight,
+  textArea: { minHeight: 60, textAlignVertical: "top" },
+  buttonRow: { flexDirection: "row", gap: spacing.sm },
+  verifiedBadge: {
+    backgroundColor: "#dcfce7",
     borderRadius: borderRadius.lg,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    marginTop: spacing.md,
+    alignItems: "center",
+  },
+  verifiedText: { color: "#166534", fontWeight: "600", fontSize: fontSize.sm },
+  thankYouTitle: { fontSize: fontSize.lg, fontWeight: "600", color: "#166534" },
+  ctaCard: {
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: borderRadius.md,
     padding: spacing.md,
     marginTop: spacing.md,
-    borderWidth: 1,
-    borderColor: '#bfdbfe',
-    width: '100%',
   },
-  equalizerTitle: {
-    fontSize: fontSize.sm,
-    fontWeight: '600',
-    color: '#1e40af',
-  },
-  equalizerSubtitle: {
-    fontSize: fontSize.xs,
-    color: '#3b82f6',
-    marginTop: 2,
-  },
-  verifiedBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#dcfce7',
-    borderRadius: borderRadius.lg,
-    borderWidth: 1,
-    borderColor: '#bbf7d0',
-    padding: spacing.md,
-    gap: spacing.sm,
-  },
-  verifiedIcon: {
-    fontSize: 14,
-    color: colors.text.inverse,
-    backgroundColor: colors.success,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    textAlign: 'center',
-    lineHeight: 20,
-    overflow: 'hidden',
-  },
-  verifiedText: {
-    fontSize: fontSize.sm,
-    fontWeight: '500',
-    color: '#166534',
-    flex: 1,
-  },
+  ctaTitle: { fontSize: fontSize.sm, fontWeight: "600", color: colors.text.primary },
+  ctaSubtitle: { fontSize: fontSize.xs, color: colors.text.secondary, marginTop: spacing.xs },
 })

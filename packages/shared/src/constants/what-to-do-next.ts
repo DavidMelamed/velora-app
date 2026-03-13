@@ -1,220 +1,90 @@
 /**
- * What To Do Next — Severity-aware situational guidance
- * Provides actionable next steps for crash victims based on crash severity
+ * What To Do Next — Severity-aware guidance for crash victims
+ * Maps crash severity levels to actionable step-by-step guidance
  */
 
 export interface GuidanceStep {
   title: string
   description: string
-  priority: 'critical' | 'important' | 'recommended'
+  priority: "critical" | "high" | "medium" | "low"
   timeframe: string
 }
 
 export interface SeverityGuidance {
   severity: string
-  severityLabel: string
-  urgencyMessage: string
+  headline: string
+  urgencyLevel: "emergency" | "urgent" | "important" | "informational"
   steps: GuidanceStep[]
 }
 
 export const WHAT_TO_DO_NEXT: Record<string, SeverityGuidance> = {
   FATAL: {
-    severity: 'FATAL',
-    severityLabel: 'Fatal Crash',
-    urgencyMessage: 'We are deeply sorry for your loss. Here are important steps to take.',
+    severity: "FATAL",
+    headline: "Critical Crash — Immediate Steps",
+    urgencyLevel: "emergency",
     steps: [
-      {
-        title: 'Contact an attorney immediately',
-        description: 'Fatal crashes involve complex legal proceedings. An experienced wrongful death attorney can protect your family\'s rights and handle communications with insurance companies.',
-        priority: 'critical',
-        timeframe: 'Within 24 hours',
-      },
-      {
-        title: 'Do not speak to insurance adjusters',
-        description: 'Insurance companies may contact you quickly. Do not provide recorded statements or sign anything without legal counsel.',
-        priority: 'critical',
-        timeframe: 'Immediately',
-      },
-      {
-        title: 'Preserve all evidence',
-        description: 'Keep the police report, medical records, photos, and any communication related to the crash. Document everything.',
-        priority: 'important',
-        timeframe: 'Ongoing',
-      },
-      {
-        title: 'Check statute of limitations',
-        description: 'Each state has a deadline to file a wrongful death claim. Missing this deadline means losing the right to compensation forever.',
-        priority: 'important',
-        timeframe: 'Check your state\'s deadline',
-      },
-      {
-        title: 'Seek support',
-        description: 'Grief counseling and victim advocacy groups can provide emotional support during this difficult time.',
-        priority: 'recommended',
-        timeframe: 'When ready',
-      },
+      { title: "Call 911 Immediately", description: "If not already done, ensure emergency services are on the way.", priority: "critical", timeframe: "Immediately" },
+      { title: "Do Not Move Victims", description: "Unless there is immediate danger (fire, oncoming traffic), do not move injured persons.", priority: "critical", timeframe: "Immediately" },
+      { title: "Secure the Scene", description: "Turn on hazard lights and set up flares or triangles if available.", priority: "critical", timeframe: "Immediately" },
+      { title: "Document Everything", description: "When safe, photograph the scene, vehicles, and road conditions.", priority: "high", timeframe: "At the scene" },
+      { title: "Contact a Wrongful Death Attorney", description: "Families should consult an attorney experienced in fatal crash cases. Most offer free consultations.", priority: "high", timeframe: "Within 24-48 hours" },
+      { title: "Preserve Evidence", description: "Do not repair vehicles or dispose of any items from the crash scene.", priority: "high", timeframe: "Ongoing" },
+      { title: "File a Police Report", description: "Ensure a detailed police report is filed. Request a copy.", priority: "high", timeframe: "Within 24 hours" },
+      { title: "Know Your Deadlines", description: "Statute of limitations varies by state. An attorney can advise on your specific deadlines.", priority: "medium", timeframe: "Within 30 days" },
     ],
   },
-
-  SUSPECTED_SERIOUS_INJURY: {
-    severity: 'SUSPECTED_SERIOUS_INJURY',
-    severityLabel: 'Serious Injury',
-    urgencyMessage: 'Your health comes first. Take these steps to protect yourself.',
+  SERIOUS_INJURY: {
+    severity: "SERIOUS_INJURY",
+    headline: "Serious Injury — Important Steps",
+    urgencyLevel: "urgent",
     steps: [
-      {
-        title: 'Seek medical attention',
-        description: 'Even if you feel okay, some injuries take hours or days to manifest. Get a full medical evaluation and follow all treatment plans.',
-        priority: 'critical',
-        timeframe: 'Within 24 hours',
-      },
-      {
-        title: 'Document your injuries',
-        description: 'Take photos of all visible injuries. Keep all medical records, bills, and receipts. Start a daily journal of symptoms and pain levels.',
-        priority: 'critical',
-        timeframe: 'Immediately',
-      },
-      {
-        title: 'Consult a personal injury attorney',
-        description: 'Serious injuries often result in significant medical bills and lost wages. An attorney can help ensure you receive fair compensation.',
-        priority: 'important',
-        timeframe: 'Within 1 week',
-      },
-      {
-        title: 'Report to your insurance',
-        description: 'Notify your insurance company about the crash, but stick to facts only. Do not speculate about fault or the extent of your injuries.',
-        priority: 'important',
-        timeframe: 'Within 48 hours',
-      },
-      {
-        title: 'Follow up on treatment',
-        description: 'Attend all follow-up appointments. Gaps in treatment can be used by insurance companies to minimize your claim.',
-        priority: 'recommended',
-        timeframe: 'Ongoing',
-      },
+      { title: "Seek Medical Attention", description: "Get evaluated by a medical professional even if injuries seem manageable. Some injuries present later.", priority: "critical", timeframe: "Immediately" },
+      { title: "Document Your Injuries", description: "Keep records of all medical visits, diagnoses, and treatments.", priority: "high", timeframe: "Ongoing" },
+      { title: "File a Police Report", description: "If not done at the scene, file a report as soon as possible.", priority: "high", timeframe: "Within 24 hours" },
+      { title: "Photograph Everything", description: "Document vehicle damage, injuries, the scene, and any relevant road conditions.", priority: "high", timeframe: "As soon as possible" },
+      { title: "Contact Your Insurance", description: "Report the crash to your insurance company. Provide facts only — do not admit fault.", priority: "high", timeframe: "Within 24-48 hours" },
+      { title: "Consult a Personal Injury Attorney", description: "For serious injuries, legal representation can significantly impact your outcome.", priority: "high", timeframe: "Within 1 week" },
+      { title: "Keep a Recovery Journal", description: "Document pain levels, limitations, missed work, and emotional impact daily.", priority: "medium", timeframe: "Ongoing" },
+      { title: "Do Not Sign Settlements Quickly", description: "Insurance companies may offer fast settlements. Consult an attorney before signing.", priority: "medium", timeframe: "Ongoing" },
     ],
   },
-
-  SUSPECTED_MINOR_INJURY: {
-    severity: 'SUSPECTED_MINOR_INJURY',
-    severityLabel: 'Minor Injury',
-    urgencyMessage: 'Even minor injuries deserve attention. Here is what to do.',
+  MINOR_INJURY: {
+    severity: "MINOR_INJURY",
+    headline: "Minor Injury — Recommended Steps",
+    urgencyLevel: "important",
     steps: [
-      {
-        title: 'Get checked by a doctor',
-        description: 'Minor injuries can become serious if untreated. Whiplash, concussions, and soft tissue injuries often worsen over time.',
-        priority: 'important',
-        timeframe: 'Within 48 hours',
-      },
-      {
-        title: 'Document everything',
-        description: 'Photos of vehicle damage, the crash scene, and your injuries. Save the police report number.',
-        priority: 'important',
-        timeframe: 'Immediately',
-      },
-      {
-        title: 'Exchange information',
-        description: 'Ensure you have the other driver\'s insurance info, license plate, and contact details.',
-        priority: 'important',
-        timeframe: 'At the scene',
-      },
-      {
-        title: 'File an insurance claim',
-        description: 'Report the crash to your insurance. Keep records of all communications.',
-        priority: 'recommended',
-        timeframe: 'Within 1 week',
-      },
-      {
-        title: 'Consider legal consultation',
-        description: 'If your injury affects your ability to work or daily life, a free consultation with an attorney can help you understand your options.',
-        priority: 'recommended',
-        timeframe: 'Within 2 weeks',
-      },
+      { title: "Get Checked by a Doctor", description: "Even minor injuries should be evaluated. Whiplash and concussions can appear days later.", priority: "high", timeframe: "Within 24-48 hours" },
+      { title: "Exchange Information", description: "Get names, contact info, insurance details, and license plates from all parties involved.", priority: "high", timeframe: "At the scene" },
+      { title: "File a Police Report", description: "A police report creates an official record of the crash.", priority: "high", timeframe: "Within 24 hours" },
+      { title: "Take Photos", description: "Photograph all vehicles, the intersection, traffic signs, and any visible injuries.", priority: "high", timeframe: "At the scene" },
+      { title: "Notify Your Insurance", description: "Report the crash and provide factual information.", priority: "medium", timeframe: "Within 48 hours" },
+      { title: "Track Medical Expenses", description: "Keep receipts for all medical visits, medications, and therapy.", priority: "medium", timeframe: "Ongoing" },
+      { title: "Consider Legal Advice", description: "If the other party was at fault, a consultation (usually free) can help you understand your options.", priority: "low", timeframe: "Within 2 weeks" },
     ],
   },
-
-  POSSIBLE_INJURY: {
-    severity: 'POSSIBLE_INJURY',
-    severityLabel: 'Possible Injury',
-    urgencyMessage: 'You may not feel hurt now, but that can change. Stay vigilant.',
+  PDO: {
+    severity: "PDO",
+    headline: "Property Damage Only — Next Steps",
+    urgencyLevel: "informational",
     steps: [
-      {
-        title: 'Monitor your symptoms',
-        description: 'Adrenaline can mask pain. Watch for headaches, neck pain, back pain, numbness, or mood changes over the next few days.',
-        priority: 'important',
-        timeframe: 'Next 72 hours',
-      },
-      {
-        title: 'See a doctor if symptoms appear',
-        description: 'If any new symptoms develop, see a healthcare provider immediately. Early documentation strengthens any future claim.',
-        priority: 'important',
-        timeframe: 'If symptoms develop',
-      },
-      {
-        title: 'Get the police report',
-        description: 'Request a copy of the official crash report from the responding agency. This is key evidence for any claim.',
-        priority: 'recommended',
-        timeframe: 'Within 1 week',
-      },
-      {
-        title: 'Notify your insurance',
-        description: 'Report the crash to your insurance company even if you feel fine. Late reporting can complicate claims.',
-        priority: 'recommended',
-        timeframe: 'Within 1 week',
-      },
-      {
-        title: 'Keep records',
-        description: 'Save photos, the police report, and any communication with the other driver or their insurance.',
-        priority: 'recommended',
-        timeframe: 'Ongoing',
-      },
-    ],
-  },
-
-  PROPERTY_DAMAGE_ONLY: {
-    severity: 'PROPERTY_DAMAGE_ONLY',
-    severityLabel: 'Property Damage Only',
-    urgencyMessage: 'No injuries reported. Here is how to handle the property damage.',
-    steps: [
-      {
-        title: 'Document the damage',
-        description: 'Take detailed photos of all vehicle damage from multiple angles. Include the other vehicle and the crash scene.',
-        priority: 'important',
-        timeframe: 'At the scene',
-      },
-      {
-        title: 'Exchange information',
-        description: 'Get the other driver\'s name, phone, insurance company, policy number, and license plate.',
-        priority: 'important',
-        timeframe: 'At the scene',
-      },
-      {
-        title: 'File an insurance claim',
-        description: 'Report the crash to your insurance. Decide whether to file under your policy (collision) or the other driver\'s (liability).',
-        priority: 'important',
-        timeframe: 'Within 48 hours',
-      },
-      {
-        title: 'Get repair estimates',
-        description: 'Get 2-3 repair estimates. Your insurance may require using their approved shops.',
-        priority: 'recommended',
-        timeframe: 'Within 1 week',
-      },
-      {
-        title: 'Monitor for late symptoms',
-        description: 'Some injuries take days to appear. If you develop any pain or symptoms, see a doctor immediately.',
-        priority: 'recommended',
-        timeframe: 'Next 2 weeks',
-      },
+      { title: "Check for Injuries", description: "Ensure all parties are uninjured. Adrenaline can mask symptoms.", priority: "high", timeframe: "At the scene" },
+      { title: "Move to Safety", description: "If vehicles are driveable, move them to the shoulder or a safe location.", priority: "high", timeframe: "At the scene" },
+      { title: "Exchange Information", description: "Get insurance info, driver license numbers, and contact details.", priority: "high", timeframe: "At the scene" },
+      { title: "Document the Damage", description: "Photograph all vehicle damage from multiple angles.", priority: "high", timeframe: "At the scene" },
+      { title: "File a Police Report", description: "Many states require reports even for property-damage-only crashes.", priority: "medium", timeframe: "Within 24 hours" },
+      { title: "Contact Your Insurance", description: "File a claim with your insurance company.", priority: "medium", timeframe: "Within 48 hours" },
+      { title: "Get Repair Estimates", description: "Get at least two repair estimates before authorizing work.", priority: "low", timeframe: "Within 1 week" },
     ],
   },
 }
 
 /**
  * Get guidance for a given severity level
- * Falls back to POSSIBLE_INJURY if severity is unknown
  */
 export function getGuidanceForSeverity(severity: string | null | undefined): SeverityGuidance {
-  if (!severity) return WHAT_TO_DO_NEXT.POSSIBLE_INJURY
-  const key = severity.toUpperCase()
-  return WHAT_TO_DO_NEXT[key] || WHAT_TO_DO_NEXT.POSSIBLE_INJURY
+  const key = severity?.toUpperCase() || ""
+  if (key === "FATAL") return WHAT_TO_DO_NEXT.FATAL\!
+  if (key.includes("SERIOUS")) return WHAT_TO_DO_NEXT.SERIOUS_INJURY\!
+  if (key.includes("MINOR") || key.includes("POSSIBLE")) return WHAT_TO_DO_NEXT.MINOR_INJURY\!
+  return WHAT_TO_DO_NEXT.PDO\!
 }

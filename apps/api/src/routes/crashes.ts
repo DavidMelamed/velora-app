@@ -68,7 +68,7 @@ router.get('/:id', async (req, res) => {
 // POST /api/crashes/:id/confirm — "I Was In This Crash" confirmation
 router.post('/:id/confirm', async (req, res) => {
   try {
-    const crashId = req.params.id as string
+    const crashId = req.params.id
 
     const crash = await prisma.crash.findUnique({
       where: { id: crashId },
@@ -85,15 +85,19 @@ router.post('/:id/confirm', async (req, res) => {
 
     await prisma.crash.update({
       where: { id: crashId },
-      data: { confirmationCount: newCount, isVerified },
+      data: {
+        confirmationCount: newCount,
+        isVerified,
+      },
     })
 
+    // Also record as a feedback event
     const { role, description } = (req.body || {}) as { role?: string; description?: string }
     await prisma.feedbackEvent.create({
       data: {
         type: 'CRASH_CONFIRMATION',
         crashId,
-        sessionId: (req.headers['x-session-id'] as string) || 'anonymous',
+        sessionId: req.headers['x-session-id'] as string || 'anonymous',
         value: { accurate: true, role: role || 'involved', description: description || '' },
       },
     })

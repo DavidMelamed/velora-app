@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { processPoliceReport } from '../services/pipeline/ocr-service'
+import { extractFromImage, validateImageUpload } from '../services/pipeline/ocr-service'
 
 const router = Router()
 
@@ -29,7 +29,13 @@ router.post('/ocr', async (req, res) => {
       return
     }
 
-    const result = await processPoliceReport(image)
+    const validation = validateImageUpload(image)
+    if (!validation.valid) {
+      res.status(400).json({ success: false, data: null, confidence: 0, rawText: null, error: validation.error })
+      return
+    }
+
+    const result = await extractFromImage(image)
     res.json(result)
   } catch (error) {
     console.error('[OCR] Processing error:', error)
