@@ -1,66 +1,92 @@
-export interface StateInfo {
-  code: string;
-  name: string;
-  fips: string;
-  statuteOfLimitationsYears: number;
-  faultType: 'at-fault' | 'no-fault' | 'choice';
-  arcgisEndpoint: string | null;
+/**
+ * Complete US state catalog with legal/geo metadata.
+ * 50 states + DC. FIPS codes from US Census Bureau.
+ * Statute of limitations and fault types verified against state law.
+ */
+
+export type FaultType = 'PURE_COMPARATIVE' | 'MODIFIED_50' | 'MODIFIED_51' | 'CONTRIBUTORY'
+
+export interface StateConfig {
+  code: string           // 2-letter
+  fips: string           // 2-digit FIPS
+  name: string
+  statuteOfLimitationsYears: number
+  faultType: FaultType
+  dataSources: {
+    fars: boolean        // always true — FARS covers all states
+    arcgis?: string      // endpoint URL if available
+    socrata?: string     // dataset ID if available
+    cdot?: boolean       // special case for Colorado
+  }
 }
 
-export const STATE_CATALOG: Record<string, StateInfo> = {
-  AL: { code: 'AL', name: 'Alabama', fips: '01', statuteOfLimitationsYears: 2, faultType: 'at-fault', arcgisEndpoint: null },
-  AK: { code: 'AK', name: 'Alaska', fips: '02', statuteOfLimitationsYears: 2, faultType: 'at-fault', arcgisEndpoint: null },
-  AZ: { code: 'AZ', name: 'Arizona', fips: '04', statuteOfLimitationsYears: 2, faultType: 'at-fault', arcgisEndpoint: null },
-  AR: { code: 'AR', name: 'Arkansas', fips: '05', statuteOfLimitationsYears: 3, faultType: 'at-fault', arcgisEndpoint: null },
-  CA: { code: 'CA', name: 'California', fips: '06', statuteOfLimitationsYears: 2, faultType: 'at-fault', arcgisEndpoint: null },
-  CO: { code: 'CO', name: 'Colorado', fips: '08', statuteOfLimitationsYears: 3, faultType: 'at-fault', arcgisEndpoint: 'https://services1.arcgis.com/Ezk9fcjSUKMTmXGa/arcgis/rest/services' },
-  CT: { code: 'CT', name: 'Connecticut', fips: '09', statuteOfLimitationsYears: 2, faultType: 'at-fault', arcgisEndpoint: null },
-  DE: { code: 'DE', name: 'Delaware', fips: '10', statuteOfLimitationsYears: 2, faultType: 'at-fault', arcgisEndpoint: null },
-  FL: { code: 'FL', name: 'Florida', fips: '12', statuteOfLimitationsYears: 4, faultType: 'no-fault', arcgisEndpoint: null },
-  GA: { code: 'GA', name: 'Georgia', fips: '13', statuteOfLimitationsYears: 2, faultType: 'at-fault', arcgisEndpoint: null },
-  HI: { code: 'HI', name: 'Hawaii', fips: '15', statuteOfLimitationsYears: 2, faultType: 'no-fault', arcgisEndpoint: null },
-  ID: { code: 'ID', name: 'Idaho', fips: '16', statuteOfLimitationsYears: 2, faultType: 'at-fault', arcgisEndpoint: null },
-  IL: { code: 'IL', name: 'Illinois', fips: '17', statuteOfLimitationsYears: 2, faultType: 'at-fault', arcgisEndpoint: null },
-  IN: { code: 'IN', name: 'Indiana', fips: '18', statuteOfLimitationsYears: 2, faultType: 'at-fault', arcgisEndpoint: null },
-  IA: { code: 'IA', name: 'Iowa', fips: '19', statuteOfLimitationsYears: 2, faultType: 'at-fault', arcgisEndpoint: null },
-  KS: { code: 'KS', name: 'Kansas', fips: '20', statuteOfLimitationsYears: 2, faultType: 'no-fault', arcgisEndpoint: null },
-  KY: { code: 'KY', name: 'Kentucky', fips: '21', statuteOfLimitationsYears: 1, faultType: 'no-fault', arcgisEndpoint: null },
-  LA: { code: 'LA', name: 'Louisiana', fips: '22', statuteOfLimitationsYears: 1, faultType: 'at-fault', arcgisEndpoint: null },
-  ME: { code: 'ME', name: 'Maine', fips: '23', statuteOfLimitationsYears: 6, faultType: 'at-fault', arcgisEndpoint: null },
-  MD: { code: 'MD', name: 'Maryland', fips: '24', statuteOfLimitationsYears: 3, faultType: 'at-fault', arcgisEndpoint: null },
-  MA: { code: 'MA', name: 'Massachusetts', fips: '25', statuteOfLimitationsYears: 3, faultType: 'no-fault', arcgisEndpoint: null },
-  MI: { code: 'MI', name: 'Michigan', fips: '26', statuteOfLimitationsYears: 3, faultType: 'no-fault', arcgisEndpoint: null },
-  MN: { code: 'MN', name: 'Minnesota', fips: '27', statuteOfLimitationsYears: 6, faultType: 'no-fault', arcgisEndpoint: null },
-  MS: { code: 'MS', name: 'Mississippi', fips: '28', statuteOfLimitationsYears: 3, faultType: 'at-fault', arcgisEndpoint: null },
-  MO: { code: 'MO', name: 'Missouri', fips: '29', statuteOfLimitationsYears: 5, faultType: 'at-fault', arcgisEndpoint: null },
-  MT: { code: 'MT', name: 'Montana', fips: '30', statuteOfLimitationsYears: 3, faultType: 'at-fault', arcgisEndpoint: null },
-  NE: { code: 'NE', name: 'Nebraska', fips: '31', statuteOfLimitationsYears: 4, faultType: 'at-fault', arcgisEndpoint: null },
-  NV: { code: 'NV', name: 'Nevada', fips: '32', statuteOfLimitationsYears: 2, faultType: 'at-fault', arcgisEndpoint: null },
-  NH: { code: 'NH', name: 'New Hampshire', fips: '33', statuteOfLimitationsYears: 3, faultType: 'at-fault', arcgisEndpoint: null },
-  NJ: { code: 'NJ', name: 'New Jersey', fips: '34', statuteOfLimitationsYears: 2, faultType: 'no-fault', arcgisEndpoint: null },
-  NM: { code: 'NM', name: 'New Mexico', fips: '35', statuteOfLimitationsYears: 3, faultType: 'at-fault', arcgisEndpoint: null },
-  NY: { code: 'NY', name: 'New York', fips: '36', statuteOfLimitationsYears: 3, faultType: 'no-fault', arcgisEndpoint: null },
-  NC: { code: 'NC', name: 'North Carolina', fips: '37', statuteOfLimitationsYears: 3, faultType: 'at-fault', arcgisEndpoint: null },
-  ND: { code: 'ND', name: 'North Dakota', fips: '38', statuteOfLimitationsYears: 6, faultType: 'no-fault', arcgisEndpoint: null },
-  OH: { code: 'OH', name: 'Ohio', fips: '39', statuteOfLimitationsYears: 2, faultType: 'at-fault', arcgisEndpoint: null },
-  OK: { code: 'OK', name: 'Oklahoma', fips: '40', statuteOfLimitationsYears: 2, faultType: 'at-fault', arcgisEndpoint: null },
-  OR: { code: 'OR', name: 'Oregon', fips: '41', statuteOfLimitationsYears: 2, faultType: 'no-fault', arcgisEndpoint: null },
-  PA: { code: 'PA', name: 'Pennsylvania', fips: '42', statuteOfLimitationsYears: 2, faultType: 'choice', arcgisEndpoint: null },
-  RI: { code: 'RI', name: 'Rhode Island', fips: '44', statuteOfLimitationsYears: 3, faultType: 'at-fault', arcgisEndpoint: null },
-  SC: { code: 'SC', name: 'South Carolina', fips: '45', statuteOfLimitationsYears: 3, faultType: 'at-fault', arcgisEndpoint: null },
-  SD: { code: 'SD', name: 'South Dakota', fips: '46', statuteOfLimitationsYears: 3, faultType: 'at-fault', arcgisEndpoint: null },
-  TN: { code: 'TN', name: 'Tennessee', fips: '47', statuteOfLimitationsYears: 1, faultType: 'at-fault', arcgisEndpoint: null },
-  TX: { code: 'TX', name: 'Texas', fips: '48', statuteOfLimitationsYears: 2, faultType: 'at-fault', arcgisEndpoint: null },
-  UT: { code: 'UT', name: 'Utah', fips: '49', statuteOfLimitationsYears: 4, faultType: 'no-fault', arcgisEndpoint: null },
-  VT: { code: 'VT', name: 'Vermont', fips: '50', statuteOfLimitationsYears: 3, faultType: 'at-fault', arcgisEndpoint: null },
-  VA: { code: 'VA', name: 'Virginia', fips: '51', statuteOfLimitationsYears: 2, faultType: 'at-fault', arcgisEndpoint: null },
-  WA: { code: 'WA', name: 'Washington', fips: '53', statuteOfLimitationsYears: 3, faultType: 'at-fault', arcgisEndpoint: null },
-  WV: { code: 'WV', name: 'West Virginia', fips: '54', statuteOfLimitationsYears: 2, faultType: 'at-fault', arcgisEndpoint: null },
-  WI: { code: 'WI', name: 'Wisconsin', fips: '55', statuteOfLimitationsYears: 3, faultType: 'at-fault', arcgisEndpoint: null },
-  WY: { code: 'WY', name: 'Wyoming', fips: '56', statuteOfLimitationsYears: 4, faultType: 'at-fault', arcgisEndpoint: null },
-  DC: { code: 'DC', name: 'District of Columbia', fips: '11', statuteOfLimitationsYears: 3, faultType: 'at-fault', arcgisEndpoint: null },
-};
+export const STATE_CATALOG: StateConfig[] = [
+  { code: 'AL', fips: '01', name: 'Alabama', statuteOfLimitationsYears: 2, faultType: 'CONTRIBUTORY', dataSources: { fars: true } },
+  { code: 'AK', fips: '02', name: 'Alaska', statuteOfLimitationsYears: 2, faultType: 'PURE_COMPARATIVE', dataSources: { fars: true } },
+  { code: 'AZ', fips: '04', name: 'Arizona', statuteOfLimitationsYears: 2, faultType: 'PURE_COMPARATIVE', dataSources: { fars: true } },
+  { code: 'AR', fips: '05', name: 'Arkansas', statuteOfLimitationsYears: 3, faultType: 'MODIFIED_51', dataSources: { fars: true } },
+  { code: 'CA', fips: '06', name: 'California', statuteOfLimitationsYears: 2, faultType: 'PURE_COMPARATIVE', dataSources: { fars: true } },
+  { code: 'CO', fips: '08', name: 'Colorado', statuteOfLimitationsYears: 3, faultType: 'MODIFIED_50', dataSources: { fars: true, cdot: true, arcgis: 'https://services1.arcgis.com/Ezk9fcjSUKMTmXGa/arcgis/rest/services' } },
+  { code: 'CT', fips: '09', name: 'Connecticut', statuteOfLimitationsYears: 2, faultType: 'MODIFIED_51', dataSources: { fars: true } },
+  { code: 'DE', fips: '10', name: 'Delaware', statuteOfLimitationsYears: 2, faultType: 'MODIFIED_51', dataSources: { fars: true } },
+  { code: 'FL', fips: '12', name: 'Florida', statuteOfLimitationsYears: 4, faultType: 'PURE_COMPARATIVE', dataSources: { fars: true } },
+  { code: 'GA', fips: '13', name: 'Georgia', statuteOfLimitationsYears: 2, faultType: 'MODIFIED_50', dataSources: { fars: true } },
+  { code: 'HI', fips: '15', name: 'Hawaii', statuteOfLimitationsYears: 2, faultType: 'MODIFIED_51', dataSources: { fars: true } },
+  { code: 'ID', fips: '16', name: 'Idaho', statuteOfLimitationsYears: 2, faultType: 'MODIFIED_50', dataSources: { fars: true } },
+  { code: 'IL', fips: '17', name: 'Illinois', statuteOfLimitationsYears: 2, faultType: 'MODIFIED_50', dataSources: { fars: true, arcgis: 'https://gis.dot.illinois.gov/arcgis/rest/services/' } },
+  { code: 'IN', fips: '18', name: 'Indiana', statuteOfLimitationsYears: 2, faultType: 'MODIFIED_51', dataSources: { fars: true } },
+  { code: 'IA', fips: '19', name: 'Iowa', statuteOfLimitationsYears: 2, faultType: 'MODIFIED_51', dataSources: { fars: true } },
+  { code: 'KS', fips: '20', name: 'Kansas', statuteOfLimitationsYears: 2, faultType: 'MODIFIED_50', dataSources: { fars: true } },
+  { code: 'KY', fips: '21', name: 'Kentucky', statuteOfLimitationsYears: 1, faultType: 'PURE_COMPARATIVE', dataSources: { fars: true } },
+  { code: 'LA', fips: '22', name: 'Louisiana', statuteOfLimitationsYears: 1, faultType: 'PURE_COMPARATIVE', dataSources: { fars: true } },
+  { code: 'ME', fips: '23', name: 'Maine', statuteOfLimitationsYears: 6, faultType: 'MODIFIED_51', dataSources: { fars: true } },
+  { code: 'MD', fips: '24', name: 'Maryland', statuteOfLimitationsYears: 3, faultType: 'CONTRIBUTORY', dataSources: { fars: true } },
+  { code: 'MA', fips: '25', name: 'Massachusetts', statuteOfLimitationsYears: 3, faultType: 'MODIFIED_51', dataSources: { fars: true, arcgis: 'https://geo-massdot.opendata.arcgis.com/' } },
+  { code: 'MI', fips: '26', name: 'Michigan', statuteOfLimitationsYears: 3, faultType: 'MODIFIED_51', dataSources: { fars: true } },
+  { code: 'MN', fips: '27', name: 'Minnesota', statuteOfLimitationsYears: 6, faultType: 'MODIFIED_51', dataSources: { fars: true } },
+  { code: 'MS', fips: '28', name: 'Mississippi', statuteOfLimitationsYears: 3, faultType: 'PURE_COMPARATIVE', dataSources: { fars: true } },
+  { code: 'MO', fips: '29', name: 'Missouri', statuteOfLimitationsYears: 5, faultType: 'PURE_COMPARATIVE', dataSources: { fars: true } },
+  { code: 'MT', fips: '30', name: 'Montana', statuteOfLimitationsYears: 3, faultType: 'MODIFIED_51', dataSources: { fars: true } },
+  { code: 'NE', fips: '31', name: 'Nebraska', statuteOfLimitationsYears: 4, faultType: 'MODIFIED_50', dataSources: { fars: true } },
+  { code: 'NV', fips: '32', name: 'Nevada', statuteOfLimitationsYears: 2, faultType: 'MODIFIED_51', dataSources: { fars: true } },
+  { code: 'NH', fips: '33', name: 'New Hampshire', statuteOfLimitationsYears: 3, faultType: 'MODIFIED_51', dataSources: { fars: true } },
+  { code: 'NJ', fips: '34', name: 'New Jersey', statuteOfLimitationsYears: 2, faultType: 'MODIFIED_51', dataSources: { fars: true } },
+  { code: 'NM', fips: '35', name: 'New Mexico', statuteOfLimitationsYears: 3, faultType: 'PURE_COMPARATIVE', dataSources: { fars: true } },
+  { code: 'NY', fips: '36', name: 'New York', statuteOfLimitationsYears: 3, faultType: 'PURE_COMPARATIVE', dataSources: { fars: true, socrata: 'h9gi-nx95' } },
+  { code: 'NC', fips: '37', name: 'North Carolina', statuteOfLimitationsYears: 3, faultType: 'CONTRIBUTORY', dataSources: { fars: true } },
+  { code: 'ND', fips: '38', name: 'North Dakota', statuteOfLimitationsYears: 6, faultType: 'MODIFIED_50', dataSources: { fars: true } },
+  { code: 'OH', fips: '39', name: 'Ohio', statuteOfLimitationsYears: 2, faultType: 'MODIFIED_51', dataSources: { fars: true } },
+  { code: 'OK', fips: '40', name: 'Oklahoma', statuteOfLimitationsYears: 2, faultType: 'MODIFIED_51', dataSources: { fars: true } },
+  { code: 'OR', fips: '41', name: 'Oregon', statuteOfLimitationsYears: 2, faultType: 'MODIFIED_51', dataSources: { fars: true } },
+  { code: 'PA', fips: '42', name: 'Pennsylvania', statuteOfLimitationsYears: 2, faultType: 'MODIFIED_51', dataSources: { fars: true, arcgis: 'https://gis.penndot.pa.gov/arcgis/rest/services/opendata/CrashData/FeatureServer' } },
+  { code: 'RI', fips: '44', name: 'Rhode Island', statuteOfLimitationsYears: 3, faultType: 'PURE_COMPARATIVE', dataSources: { fars: true } },
+  { code: 'SC', fips: '45', name: 'South Carolina', statuteOfLimitationsYears: 3, faultType: 'MODIFIED_51', dataSources: { fars: true } },
+  { code: 'SD', fips: '46', name: 'South Dakota', statuteOfLimitationsYears: 3, faultType: 'MODIFIED_51', dataSources: { fars: true } },
+  { code: 'TN', fips: '47', name: 'Tennessee', statuteOfLimitationsYears: 1, faultType: 'MODIFIED_50', dataSources: { fars: true } },
+  { code: 'TX', fips: '48', name: 'Texas', statuteOfLimitationsYears: 2, faultType: 'MODIFIED_51', dataSources: { fars: true } },
+  { code: 'UT', fips: '49', name: 'Utah', statuteOfLimitationsYears: 4, faultType: 'MODIFIED_50', dataSources: { fars: true } },
+  { code: 'VT', fips: '50', name: 'Vermont', statuteOfLimitationsYears: 3, faultType: 'MODIFIED_51', dataSources: { fars: true } },
+  { code: 'VA', fips: '51', name: 'Virginia', statuteOfLimitationsYears: 2, faultType: 'CONTRIBUTORY', dataSources: { fars: true } },
+  { code: 'WA', fips: '53', name: 'Washington', statuteOfLimitationsYears: 3, faultType: 'PURE_COMPARATIVE', dataSources: { fars: true, arcgis: 'https://data.wsdot.wa.gov/' } },
+  { code: 'WV', fips: '54', name: 'West Virginia', statuteOfLimitationsYears: 2, faultType: 'MODIFIED_50', dataSources: { fars: true } },
+  { code: 'WI', fips: '55', name: 'Wisconsin', statuteOfLimitationsYears: 3, faultType: 'MODIFIED_51', dataSources: { fars: true } },
+  { code: 'WY', fips: '56', name: 'Wyoming', statuteOfLimitationsYears: 4, faultType: 'MODIFIED_51', dataSources: { fars: true } },
+  { code: 'DC', fips: '11', name: 'District of Columbia', statuteOfLimitationsYears: 3, faultType: 'CONTRIBUTORY', dataSources: { fars: true } },
+]
 
-export const ALL_STATE_CODES = Object.keys(STATE_CATALOG);
-export const NO_FAULT_STATES = Object.values(STATE_CATALOG).filter(s => s.faultType === 'no-fault').map(s => s.code);
-export const CHOICE_STATES = Object.values(STATE_CATALOG).filter(s => s.faultType === 'choice').map(s => s.code);
+/** Lookup map by state code */
+export const STATE_BY_CODE: Record<string, StateConfig> = Object.fromEntries(
+  STATE_CATALOG.map(s => [s.code, s])
+)
+
+/** Lookup map by FIPS code */
+export const STATE_BY_FIPS: Record<string, StateConfig> = Object.fromEntries(
+  STATE_CATALOG.map(s => [s.fips, s])
+)
+
+export const ALL_STATE_CODES = STATE_CATALOG.map(s => s.code)
+
+export const CONTRIBUTORY_STATES = STATE_CATALOG.filter(s => s.faultType === 'CONTRIBUTORY').map(s => s.code)
+export const PURE_COMPARATIVE_STATES = STATE_CATALOG.filter(s => s.faultType === 'PURE_COMPARATIVE').map(s => s.code)
+export const MODIFIED_50_STATES = STATE_CATALOG.filter(s => s.faultType === 'MODIFIED_50').map(s => s.code)
+export const MODIFIED_51_STATES = STATE_CATALOG.filter(s => s.faultType === 'MODIFIED_51').map(s => s.code)

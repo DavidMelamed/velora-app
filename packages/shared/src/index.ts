@@ -32,8 +32,17 @@ export type {
 } from './types/pipeline';
 
 // Constants
-export { STATE_CATALOG, ALL_STATE_CODES, NO_FAULT_STATES, CHOICE_STATES } from './constants/state-catalog';
-export type { StateInfo } from './constants/state-catalog';
+export {
+  STATE_CATALOG,
+  STATE_BY_CODE,
+  STATE_BY_FIPS,
+  ALL_STATE_CODES,
+  CONTRIBUTORY_STATES,
+  PURE_COMPARATIVE_STATES,
+  MODIFIED_50_STATES,
+  MODIFIED_51_STATES,
+} from './constants/state-catalog';
+export type { StateConfig, FaultType } from './constants/state-catalog';
 
 export {
   CrashSeverity,
