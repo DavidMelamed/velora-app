@@ -92,7 +92,7 @@ export function detectPersona(query: string, signals?: { referrer?: string; hasL
   const detectedSignals: string[] = []
 
   // Victim signals
-  if (/\b(my crash|i was (in|hit|involved)|my accident|happened to me)\b/.test(lowerQuery)) {
+  if (/\b(my crash|i was (in|hit|involved)|my accident|happened to me|what should i do)\b/.test(lowerQuery)) {
     detectedSignals.push('first_person_crash_reference')
     return { type: 'victim', confidence: 0.9, signals: detectedSignals }
   }
@@ -104,19 +104,19 @@ export function detectPersona(query: string, signals?: { referrer?: string; hasL
   }
 
   // Attorney signals
-  if (/\b(client|case|liability|damages|negligence|statute|tort|deposition)\b/.test(lowerQuery)) {
+  if (/\b(my client|case evaluation|client|case|liability|damages|negligence|statute|tort|deposition)\b/.test(lowerQuery)) {
     detectedSignals.push('legal_terminology')
     return { type: 'attorney', confidence: 0.8, signals: detectedSignals }
   }
 
   // Researcher signals
-  if (/\b(dataset|correlation|regression|statistical|methodology|sample size)\b/.test(lowerQuery)) {
+  if (/\b(study|dataset|correlation|regression|statistical|methodology|sample size)\b/.test(lowerQuery)) {
     detectedSignals.push('research_terminology')
     return { type: 'researcher', confidence: 0.75, signals: detectedSignals }
   }
 
   // Journalist signals
-  if (/\b(story|report|article|quote|source|interview|press)\b/.test(lowerQuery)) {
+  if (/\b(reporting on|public records|trends in|story|report|article|quote|source|interview|press)\b/.test(lowerQuery)) {
     detectedSignals.push('journalism_terminology')
     return { type: 'journalist', confidence: 0.7, signals: detectedSignals }
   }

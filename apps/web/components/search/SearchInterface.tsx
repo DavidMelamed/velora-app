@@ -8,6 +8,7 @@ import { IntersectionCard } from './IntersectionCard'
 import { AttorneyGrid } from './AttorneyGrid'
 import { TrendChart } from './TrendChart'
 import { ToolSkeleton } from './ToolSkeleton'
+import { PersonaBadge, detectPersonaClient } from './PersonaBadge'
 
 const SUGGESTIONS = [
   'Show me fatal crashes in Pennsylvania this year',
@@ -111,6 +112,18 @@ function SearchInterfaceInner() {
                 </div>
               ) : (
                 <div className="max-w-full">
+                  {(() => {
+                    // Show persona badge based on the previous user message
+                    const msgIndex = messages.indexOf(msg)
+                    const prevMsg = msgIndex > 0 ? messages[msgIndex - 1] : null
+                    const userText = prevMsg?.role === 'user' && typeof prevMsg.content === 'string' ? prevMsg.content : ''
+                    const persona = userText ? detectPersonaClient(userText) : 'general'
+                    return persona !== 'general' ? (
+                      <div className="mb-2">
+                        <PersonaBadge persona={persona} />
+                      </div>
+                    ) : null
+                  })()}
                   {msg.parts.map((part, i) => {
                     if (part.type === 'text' && part.text) {
                       return (
