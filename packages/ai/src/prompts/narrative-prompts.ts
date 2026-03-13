@@ -39,9 +39,23 @@ RULES (apply to ALL crash narratives):
 1. NEVER include names, phone numbers, addresses, or any PII
 2. NEVER assign blame — use "the data indicates" or "contributing factors include"
 3. ALWAYS cite the specific data field supporting each claim
-4. Output must follow the CrashNarrativeContent JSON structure with all 10 sections
-5. Readability target: Flesch-Kincaid grade level 8-10
-6. Disclaimer: "This narrative is generated from public crash data and is not a legal document."
+4. Readability target: Flesch-Kincaid grade level 8-10
+5. Disclaimer: "This narrative is generated from public crash data and is not a legal document."
+
+OUTPUT FORMAT:
+You must return valid JSON with exactly these 10 fields:
+{
+  "headline": "Short, impactful headline (under 100 chars)",
+  "summary": "2-3 sentence plain text summary of the crash",
+  "incidentSection": "What happened — the core crash event",
+  "vehiclesSection": "Vehicles involved, makes, models, damage",
+  "conditionsSection": "Weather, lighting, road conditions at the time",
+  "factorsSection": "Contributing factors from the data",
+  "injurySection": "Injuries sustained (with content warning for fatal/serious)",
+  "locationSection": "Where it happened — road, intersection, county, state",
+  "impactSection": "Broader context — similar crashes, community impact",
+  "whatToDoNext": "Actionable next steps appropriate for the severity"
+}
 `
 
 export function getNarrativePrompt(severity: string): string {

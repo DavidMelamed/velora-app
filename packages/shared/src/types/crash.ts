@@ -2,14 +2,23 @@
 export interface CrashNarrativeContent {
   headline: string;
   summary: string;
-  circumstances: string;
-  vehicles: string;
-  injuries: string;
-  roadConditions: string;
-  contributingFactors: string;
-  timeline: string;
-  legalContext: string;
-  disclaimer: string;
+  incidentSection: string;
+  vehiclesSection: string;
+  conditionsSection: string;
+  factorsSection: string;
+  injurySection: string;
+  locationSection: string;
+  impactSection: string;
+  whatToDoNext: string;
+}
+
+// Quality metrics for narrative validation
+export interface NarrativeQualityMetrics {
+  factualAccuracy: number;
+  toneScore: number;
+  readabilityScore: number;
+  completeness: number;
+  piiCheck: { passed: boolean; issues: string[] };
 }
 
 // Comparable crash cohort for Equalizer

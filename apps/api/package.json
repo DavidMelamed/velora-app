@@ -10,8 +10,10 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@velora/ai": "workspace:*",
     "@velora/db": "workspace:*",
     "@velora/shared": "workspace:*",
+    "ai": "^4.3.0",
     "cors": "^2.8.5",
     "express": "^4.21.0",
     "express-rate-limit": "^7.5.0",

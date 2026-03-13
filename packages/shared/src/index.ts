@@ -1,6 +1,7 @@
 // Types
 export type {
   CrashNarrativeContent,
+  NarrativeQualityMetrics,
   ComparableCohort,
   ComparableDimension,
   ComparableCrash,
