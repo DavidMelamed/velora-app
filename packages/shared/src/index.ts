@@ -46,6 +46,12 @@ export {
 export type { StateConfig, FaultType } from './constants/state-catalog';
 
 export {
+  WHAT_TO_DO_NEXT,
+  getGuidanceForSeverity,
+} from './constants/what-to-do-next';
+export type { GuidanceStep, SeverityGuidance } from './constants/what-to-do-next';
+
+export {
   CrashSeverity,
   InjuryStatus,
   MannerOfCollision,
