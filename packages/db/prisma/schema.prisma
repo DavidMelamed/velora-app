@@ -6,7 +6,7 @@ generator client {
 datasource db {
   provider   = "postgresql"
   url        = env("DATABASE_URL")
-  extensions = [vector]
+  // extensions = [vector]  // Deferred to Phase 0 PGVECTOR-SETUP — requires pgvector-enabled Postgres image
 }
 
 // ╔══════════════════════════════════════════════════╗
@@ -452,15 +452,14 @@ model PipelineDeadLetter {
 // ║  VECTOR EMBEDDINGS                              ║
 // ╚══════════════════════════════════════════════════╝
 
-model CrashEmbedding {
-  id              String    @id @default(cuid())
-  crashId         String    @unique
-  embedding       Unsupported("vector(1536)")
-  model           String    @default("text-embedding-3-small")
-  createdAt       DateTime  @default(now())
-
-  // Vector index created via raw SQL migration: CREATE INDEX ON "CrashEmbedding" USING hnsw (embedding vector_cosine_ops)
-}
+// CrashEmbedding model deferred to Phase 0 PGVECTOR-SETUP — requires pgvector extension
+// model CrashEmbedding {
+//   id              String    @id @default(cuid())
+//   crashId         String    @unique
+//   embedding       Unsupported("vector(1536)")
+//   model           String    @default("text-embedding-3-small")
+//   createdAt       DateTime  @default(now())
+// }
 
 // ╔══════════════════════════════════════════════════╗
 // ║  CRASH ARCHETYPES                               ║
