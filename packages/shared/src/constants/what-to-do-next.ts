@@ -82,9 +82,9 @@ export const WHAT_TO_DO_NEXT: Record<string, SeverityGuidance> = {
  * Get guidance for a given severity level
  */
 export function getGuidanceForSeverity(severity: string | null | undefined): SeverityGuidance {
-  const key = severity?.toUpperCase() || ""
-  if (key === "FATAL") return WHAT_TO_DO_NEXT.FATAL\!
-  if (key.includes("SERIOUS")) return WHAT_TO_DO_NEXT.SERIOUS_INJURY\!
-  if (key.includes("MINOR") || key.includes("POSSIBLE")) return WHAT_TO_DO_NEXT.MINOR_INJURY\!
-  return WHAT_TO_DO_NEXT.PDO\!
+  const key = severity?.toUpperCase() || ''
+  if (key === 'FATAL') return WHAT_TO_DO_NEXT.FATAL as SeverityGuidance
+  if (key.includes('SERIOUS')) return WHAT_TO_DO_NEXT.SERIOUS_INJURY as SeverityGuidance
+  if (key.includes('MINOR') || key.includes('POSSIBLE')) return WHAT_TO_DO_NEXT.MINOR_INJURY as SeverityGuidance
+  return WHAT_TO_DO_NEXT.PDO as SeverityGuidance
 }
