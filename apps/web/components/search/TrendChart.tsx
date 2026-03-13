@@ -1,118 +1,96 @@
 'use client'
 
-import { cn } from '@/lib/utils'
-import {
-  ResponsiveContainer,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  LineChart,
-  Line,
-} from 'recharts'
+// Plain HTML/Tailwind instead of @velora/ui to avoid React types version mismatch
 
-export interface TrendDataPoint {
+interface DataPoint {
   label: string
-  count: number
-  fatal?: number
-  injury?: number
-  pdo?: number
+  total: number
+  fatal: number
+  injury: number
+  propertyOnly: number
 }
 
-interface TrendChartProps {
-  data: TrendDataPoint[]
-  title?: string
-  variant?: 'bar' | 'line'
-  className?: string
+interface TrendData {
+  period: string
+  totalRecords: number
+  dataPoints: DataPoint[]
 }
 
-export function TrendChart({
-  data,
-  title = 'Crash Trend Over Time',
-  variant = 'bar',
-  className,
-}: TrendChartProps) {
-  if (data.length === 0) {
+export function TrendChart({ data }: { data: TrendData }) {
+  if (data.dataPoints.length === 0) {
     return (
-      <div className={cn('rounded-lg border border-gray-200 bg-white p-8 text-center', className)}>
-        <p className="text-sm text-gray-500">No trend data available.</p>
+      <div className="my-3 rounded-lg border-2 border-gray-300 bg-transparent">
+        <div className="p-4 text-center text-gray-500">
+          No trend data available for the selected filters.
+        </div>
       </div>
     )
   }
 
-  return (
-    <div className={cn('rounded-lg border border-gray-200 bg-white p-5', className)}>
-      <h3 className="text-sm font-semibold text-gray-900">{title}</h3>
+  const maxTotal = Math.max(...data.dataPoints.map((d) => d.total), 1)
 
-      <div className="mt-4 h-64 w-full">
-        <ResponsiveContainer width="100%" height="100%">
-          {variant === 'bar' ? (
-            <BarChart data={data} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis
-                dataKey="label"
-                tick={{ fontSize: 11, fill: '#6b7280' }}
-                tickLine={false}
-                axisLine={{ stroke: '#e5e7eb' }}
-              />
-              <YAxis
-                tick={{ fontSize: 11, fill: '#6b7280' }}
-                tickLine={false}
-                axisLine={false}
-                allowDecimals={false}
-              />
-              <Tooltip
-                contentStyle={{
-                  fontSize: 12,
-                  borderRadius: 8,
-                  border: '1px solid #e5e7eb',
-                  boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
-                }}
-              />
-              <Bar dataKey="count" fill="#3b82f6" radius={[4, 4, 0, 0]} name="Crashes" />
-              {data.some((d) => d.fatal !== undefined) && (
-                <Bar dataKey="fatal" fill="#475569" radius={[4, 4, 0, 0]} name="Fatal" />
-              )}
-              {data.some((d) => d.injury !== undefined) && (
-                <Bar dataKey="injury" fill="#ef4444" radius={[4, 4, 0, 0]} name="Injury" />
-              )}
-            </BarChart>
-          ) : (
-            <LineChart data={data} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis
-                dataKey="label"
-                tick={{ fontSize: 11, fill: '#6b7280' }}
-                tickLine={false}
-                axisLine={{ stroke: '#e5e7eb' }}
-              />
-              <YAxis
-                tick={{ fontSize: 11, fill: '#6b7280' }}
-                tickLine={false}
-                axisLine={false}
-                allowDecimals={false}
-              />
-              <Tooltip
-                contentStyle={{
-                  fontSize: 12,
-                  borderRadius: 8,
-                  border: '1px solid #e5e7eb',
-                  boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
-                }}
-              />
-              <Line
-                type="monotone"
-                dataKey="count"
-                stroke="#3b82f6"
-                strokeWidth={2}
-                dot={{ fill: '#3b82f6', r: 3 }}
-                name="Crashes"
-              />
-            </LineChart>
-          )}
-        </ResponsiveContainer>
+  return (
+    <div className="my-3 rounded-lg bg-white shadow-md dark:bg-gray-900">
+      <div className="p-5">
+        <div className="mb-3 flex items-center justify-between">
+          <h3 className="text-lg font-semibold">
+            Crash Trends by {data.period === 'dayOfWeek' ? 'Day of Week' : data.period === 'hourOfDay' ? 'Hour' : data.period}
+          </h3>
+          <span className="text-sm text-gray-500">{data.totalRecords.toLocaleString()} total records</span>
+        </div>
+
+        {/* Simple bar chart */}
+        <div className="space-y-2">
+          {data.dataPoints.map((point) => {
+            const pct = (point.total / maxTotal) * 100
+            const fatalPct = point.total > 0 ? (point.fatal / point.total) * 100 : 0
+            const injuryPct = point.total > 0 ? (point.injury / point.total) * 100 : 0
+
+            return (
+              <div key={point.label} className="flex items-center gap-3">
+                <span className="w-20 shrink-0 text-right text-xs text-gray-500">{point.label}</span>
+                <div className="h-6 flex-1 overflow-hidden rounded bg-gray-100 dark:bg-gray-700">
+                  <div className="flex h-full" style={{ width: `${pct}%` }}>
+                    {fatalPct > 0 && (
+                      <div
+                        className="h-full bg-red-500"
+                        style={{ width: `${fatalPct}%` }}
+                        title={`Fatal: ${point.fatal}`}
+                      />
+                    )}
+                    {injuryPct > 0 && (
+                      <div
+                        className="h-full bg-orange-400"
+                        style={{ width: `${injuryPct}%` }}
+                        title={`Injury: ${point.injury}`}
+                      />
+                    )}
+                    <div
+                      className="h-full flex-1 bg-blue-400"
+                      title={`Property only: ${point.propertyOnly}`}
+                    />
+                  </div>
+                </div>
+                <span className="w-12 shrink-0 text-right text-xs font-medium">
+                  {point.total.toLocaleString()}
+                </span>
+              </div>
+            )
+          })}
+        </div>
+
+        {/* Legend */}
+        <div className="mt-4 flex gap-4 text-xs text-gray-500">
+          <span className="flex items-center gap-1">
+            <span className="inline-block h-2.5 w-2.5 rounded-full bg-red-500" /> Fatal
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="inline-block h-2.5 w-2.5 rounded-full bg-orange-400" /> Injury
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="inline-block h-2.5 w-2.5 rounded-full bg-blue-400" /> Property Only
+          </span>
+        </div>
       </div>
     </div>
   )

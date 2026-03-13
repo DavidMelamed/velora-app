@@ -1,21 +1,13 @@
 'use client'
 
-import Link from 'next/link'
-import { cn } from '@/lib/utils'
+// Using plain HTML/Tailwind to avoid React types version mismatch with @velora/ui forwardRef
 
-const SEVERITY_COLORS: Record<string, { bg: string; text: string; dot: string; label: string }> = {
-  FATAL: { bg: 'bg-slate-100', text: 'text-slate-800', dot: 'bg-slate-700', label: 'Fatal' },
-  SUSPECTED_SERIOUS_INJURY: { bg: 'bg-red-50', text: 'text-red-800', dot: 'bg-red-500', label: 'Serious' },
-  SUSPECTED_MINOR_INJURY: { bg: 'bg-amber-50', text: 'text-amber-800', dot: 'bg-amber-500', label: 'Minor' },
-  POSSIBLE_INJURY: { bg: 'bg-yellow-50', text: 'text-yellow-800', dot: 'bg-yellow-500', label: 'Possible' },
-  PROPERTY_DAMAGE_ONLY: { bg: 'bg-green-50', text: 'text-green-800', dot: 'bg-green-500', label: 'PDO' },
-}
-
-export interface CrashResult {
+interface CrashResult {
   id: string
-  crashDate: string
+  date: string
   location: string
   severity: string | null
+  type: string | null
   latitude: number | null
   longitude: number | null
   vehicleCount: number
@@ -24,82 +16,81 @@ export interface CrashResult {
 
 interface CrashResultsMapProps {
   results: CrashResult[]
-  className?: string
+  total: number
+  showing: number
 }
 
-export function CrashResultsMap({ results, className }: CrashResultsMapProps) {
-  if (results.length === 0) {
-    return (
-      <div className={cn('rounded-lg border border-gray-200 bg-white p-8 text-center', className)}>
-        <p className="text-sm text-gray-500">No crash results found.</p>
-      </div>
-    )
-  }
+const severityColors: Record<string, string> = {
+  FATAL: 'bg-red-600 text-white',
+  SUSPECTED_SERIOUS_INJURY: 'bg-orange-500 text-white',
+  SUSPECTED_MINOR_INJURY: 'bg-yellow-500 text-gray-900',
+  POSSIBLE_INJURY: 'bg-blue-400 text-white',
+  PROPERTY_DAMAGE_ONLY: 'bg-gray-400 text-white',
+}
+
+function formatSeverity(sev: string | null): string {
+  if (!sev) return 'Unknown'
+  return sev
+    .replace(/_/g, ' ')
+    .toLowerCase()
+    .replace(/\b\w/g, (c) => c.toUpperCase())
+}
+
+export function CrashResultsMap({ results, total, showing }: CrashResultsMapProps) {
+  const geoResults = results.filter((r) => r.latitude != null && r.longitude != null)
 
   return (
-    <div className={cn('rounded-lg border border-gray-200 bg-white', className)}>
-      <div className="border-b border-gray-200 px-4 py-3">
-        <h3 className="text-sm font-semibold text-gray-900">
-          {results.length} Crash{results.length !== 1 ? 'es' : ''} Found
-        </h3>
-        <div className="mt-2 flex flex-wrap gap-3">
-          {Object.entries(SEVERITY_COLORS).map(([key, config]) => (
-            <span key={key} className="flex items-center gap-1.5 text-xs text-gray-500">
-              <span className={cn('inline-block h-2 w-2 rounded-full', config.dot)} />
-              {config.label}
-            </span>
-          ))}
-        </div>
+    <div className="my-3">
+      <div className="mb-2 text-sm text-gray-500 dark:text-gray-400">
+        Showing {showing} of {total.toLocaleString()} crashes
       </div>
-
-      <ul className="divide-y divide-gray-100">
-        {results.map((crash) => {
-          const severityConfig = SEVERITY_COLORS[crash.severity || ''] || {
-            bg: 'bg-gray-50',
-            text: 'text-gray-700',
-            dot: 'bg-gray-400',
-            label: 'Unknown',
-          }
-
-          return (
-            <li key={crash.id}>
-              <Link
-                href={`/crashes/${crash.id}`}
-                className={cn(
-                  'flex items-center gap-4 px-4 py-3 transition-colors hover:bg-gray-50',
-                  severityConfig.bg
-                )}
-              >
-                <span className={cn('h-3 w-3 flex-shrink-0 rounded-full', severityConfig.dot)} />
-
+      <div className="grid gap-3 sm:grid-cols-2">
+        {results.map((crash) => (
+          <div key={crash.id} className="rounded-lg border-2 border-gray-300 bg-transparent transition-shadow hover:shadow-md">
+            <div className="p-4">
+              <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-gray-900">{crash.location}</p>
-                  <p className="text-xs text-gray-500">
-                    {new Date(crash.crashDate).toLocaleDateString('en-US', {
-                      year: 'numeric',
-                      month: 'short',
-                      day: 'numeric',
-                    })}
-                    {' \u00b7 '}
-                    {crash.vehicleCount} vehicle{crash.vehicleCount !== 1 ? 's' : ''}
-                    {' \u00b7 '}
-                    {crash.personCount} person{crash.personCount !== 1 ? 's' : ''}
+                  <a
+                    href={`/crashes/${crash.id}`}
+                    className="font-medium text-blue-600 hover:underline dark:text-blue-400"
+                  >
+                    {crash.date}
+                  </a>
+                  <p className="mt-1 truncate text-sm text-gray-600 dark:text-gray-300">
+                    {crash.location || 'Unknown location'}
                   </p>
+                  <div className="mt-2 flex gap-3 text-xs text-gray-500">
+                    <span>
+                      {crash.vehicleCount} vehicle{crash.vehicleCount !== 1 ? 's' : ''}
+                    </span>
+                    <span>
+                      {crash.personCount} person{crash.personCount !== 1 ? 's' : ''}
+                    </span>
+                    {crash.type && <span>{crash.type.replace(/_/g, ' ').toLowerCase()}</span>}
+                  </div>
                 </div>
-
-                <span
-                  className={cn(
-                    'inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium',
-                    severityConfig.text
-                  )}
-                >
-                  {severityConfig.label}
-                </span>
-              </Link>
-            </li>
-          )
-        })}
-      </ul>
+                {crash.severity && (
+                  <span
+                    className={`inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-xs font-medium ${severityColors[crash.severity] ?? 'bg-gray-200'}`}
+                  >
+                    {formatSeverity(crash.severity)}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+      {geoResults.length > 0 && (
+        <div className="mt-3 overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700">
+          <iframe
+            title="Crash locations"
+            className="h-64 w-full"
+            src={`https://www.openstreetmap.org/export/embed.html?bbox=${Math.min(...geoResults.map((r) => r.longitude!)) - 0.02},${Math.min(...geoResults.map((r) => r.latitude!)) - 0.02},${Math.max(...geoResults.map((r) => r.longitude!)) + 0.02},${Math.max(...geoResults.map((r) => r.latitude!)) + 0.02}&layer=mapnik`}
+            loading="lazy"
+          />
+        </div>
+      )}
     </div>
   )
 }
