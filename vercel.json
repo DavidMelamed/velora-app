@@ -1,6 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "pnpm turbo db:generate && pnpm turbo build --filter=@velora/web...",
+  "buildCommand": "pnpm turbo db:generate && pnpm turbo build --filter=@velora/web... && cp packages/db/generated/client/*.node apps/web/.next/server/ 2>/dev/null; cp packages/db/generated/client/libquery_engine-* apps/web/.next/server/ 2>/dev/null; true",
   "installCommand": "pnpm install",
   "framework": "nextjs",
   "outputDirectory": "apps/web/.next"

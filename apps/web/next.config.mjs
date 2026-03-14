@@ -9,7 +9,7 @@ const nextConfig = {
   transpilePackages: ['@velora/ui', '@velora/shared', '@velora/ai'],
   outputFileTracingRoot: path.join(__dirname, '../../'),
   outputFileTracingIncludes: {
-    '/**': ['../../packages/db/generated/**/*'],
+    '/**': ['./node_modules/.prisma/client/**/*', '../../packages/db/generated/**/*', '../../packages/db/generated/client/**/*'],
   },
 }
 
