@@ -1,6 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "pnpm turbo db:generate && pnpm turbo build --filter=@velora/web...",
+  "buildCommand": "pnpm turbo db:generate && mkdir -p apps/web/.prisma/client && cp -r node_modules/.pnpm/@prisma+client@*/node_modules/.prisma/client/* apps/web/.prisma/client/ && pnpm turbo build --filter=@velora/web...",
   "installCommand": "pnpm install",
   "framework": "nextjs",
   "outputDirectory": "apps/web/.next"

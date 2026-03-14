@@ -9,6 +9,11 @@ const nextConfig = {
   transpilePackages: ['@velora/ui', '@velora/shared', '@velora/ai'],
   outputFileTracingRoot: path.join(__dirname, '../../'),
   serverExternalPackages: ['@prisma/client', 'prisma'],
+  outputFileTracingIncludes: {
+    '/**': [
+      './apps/web/.prisma/client/**/*',
+    ],
+  },
 }
 
 export default withPayload(nextConfig)
