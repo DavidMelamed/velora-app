@@ -1,0 +1,7 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "pnpm turbo db:generate && pnpm turbo build --filter=@velora/web...",
+  "installCommand": "pnpm install",
+  "framework": null,
+  "outputDirectory": "apps/web/.next"
+}
