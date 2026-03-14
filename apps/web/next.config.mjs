@@ -8,7 +8,6 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const nextConfig = {
   transpilePackages: ['@velora/ui', '@velora/shared', '@velora/ai'],
   outputFileTracingRoot: path.join(__dirname, '../../'),
-  serverExternalPackages: ['@prisma/client', 'prisma'],
   outputFileTracingIncludes: {
     '/**': [
       './apps/web/.prisma/client/**/*',
