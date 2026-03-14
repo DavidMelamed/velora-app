@@ -142,7 +142,7 @@ export async function GET(
       })
 
       entries = crashes.map((c) => ({
-        loc: `${BASE_URL}/crashes/${c.id}`,
+        loc: `${BASE_URL}/crash/${c.id}`,
         changefreq: 'monthly' as const,
         priority: 0.6,
         lastmod: c.updatedAt.toISOString().split('T')[0],

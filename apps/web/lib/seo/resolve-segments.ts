@@ -67,13 +67,14 @@ export const ATTRIBUTE_DISPLAY_NAMES: Record<CrashAttribute, string> = {
   'highway': 'Highway Crashes',
 }
 
-// Map attribute slugs to Prisma MannerOfCollision or other query filters
+// Map attribute slugs to Prisma where clause filters
+// Uses correct enum values from the Prisma schema
 export const ATTRIBUTE_FILTERS: Record<CrashAttribute, Record<string, unknown>> = {
-  'rear-end': { mannerOfCollision: 'REAR_END' },
-  'head-on': { mannerOfCollision: 'HEAD_ON' },
+  'rear-end': { mannerOfCollision: 'FRONT_TO_REAR' },
+  'head-on': { mannerOfCollision: 'FRONT_TO_FRONT' },
   'sideswipe': { mannerOfCollision: 'SIDESWIPE_SAME_DIRECTION' },
   't-bone': { mannerOfCollision: 'ANGLE' },
-  'rollover': { firstHarmfulEvent: 'ROLLOVER' },
+  'rollover': { firstHarmfulEvent: { contains: 'ROLLOVER' } },
   'pedestrian': { persons: { some: { personType: 'PEDESTRIAN' } } },
   'bicycle': { persons: { some: { personType: 'PEDALCYCLIST' } } },
   'motorcycle': { vehicles: { some: { bodyType: 'MOTORCYCLE' } } },
@@ -82,7 +83,7 @@ export const ATTRIBUTE_FILTERS: Record<CrashAttribute, Record<string, unknown>> 
   'fatal': { crashSeverity: 'FATAL' },
   'multi-vehicle': { vehicles: { some: {} } },
   'single-vehicle': { vehicles: { some: {} } },
-  'intersection': { intersectionType: { not: null } },
+  'intersection': { NOT: { intersectionType: null } },
   'highway': { firstHarmfulEvent: { contains: 'HIGHWAY' } },
 }
 

@@ -51,7 +51,7 @@ export function CrashResultsMap({ results, total, showing }: CrashResultsMapProp
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0 flex-1">
                   <a
-                    href={`/crashes/${crash.id}`}
+                    href={`/crash/${crash.id}`}
                     className="font-medium text-blue-600 hover:underline dark:text-blue-400"
                   >
                     {crash.date}

@@ -12,7 +12,7 @@ const TIERS = ['core', 'states', 'cities', 'attributes', 'temporal', 'attorneys'
 export default function sitemap(): MetadataRoute.Sitemap {
   // Return a sitemap index pointing to per-tier sitemaps
   return TIERS.map((tier) => ({
-    url: `${BASE_URL}/sitemap/${tier}`,
+    url: `${BASE_URL}/sitemaps/${tier}`,
     lastModified: new Date(),
   }))
 }

@@ -43,7 +43,7 @@ export function crashEventSchema(crash: {
           }
         : {}),
     },
-    url: `${BASE_URL}/crashes/${crash.id}`,
+    url: `${BASE_URL}/crash/${crash.id}`,
     organizer: {
       '@type': 'Organization',
       name: 'Velora',

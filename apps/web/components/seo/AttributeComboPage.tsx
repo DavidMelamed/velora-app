@@ -123,7 +123,7 @@ export function AttributeComboPage({ resolved, stats }: AttributeComboPageProps)
             {stats.recentCrashes.map((crash) => (
               <a
                 key={crash.id}
-                href={`/crashes/${crash.id}`}
+                href={`/crash/${crash.id}`}
                 className="block rounded-lg border border-gray-200 p-4 transition-colors hover:border-blue-300 hover:bg-blue-50/50 dark:border-gray-700 dark:hover:border-blue-700 dark:hover:bg-blue-900/10"
               >
                 <div className="flex items-center justify-between">

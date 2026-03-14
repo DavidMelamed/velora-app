@@ -36,7 +36,7 @@ export async function RecentCrashes() {
         {crashes.map((crash) => (
           <a
             key={crash.id}
-            href={`/crashes/${crash.id}`}
+            href={`/crash/${crash.id}`}
             className="rounded-lg border border-gray-200 p-3 transition-shadow hover:shadow-md dark:border-gray-700"
           >
             <div className="text-sm font-medium">

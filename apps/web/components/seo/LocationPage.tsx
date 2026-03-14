@@ -180,7 +180,7 @@ export function LocationPage({ resolved, stats }: LocationPageProps) {
                   <tr key={crash.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
                     <td className="px-4 py-3">
                       <a
-                        href={`/crashes/${crash.id}`}
+                        href={`/crash/${crash.id}`}
                         className="text-blue-600 hover:underline dark:text-blue-400"
                       >
                         {crash.date}
