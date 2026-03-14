@@ -1,6 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "pnpm turbo db:generate && echo '=== PRISMA ENGINE SEARCH ===' && find . -name 'libquery_engine*' -type f 2>/dev/null && echo '=== COPYING ENGINE ===' && mkdir -p apps/web/.prisma/client && find . -name 'libquery_engine*' -type f -exec cp {} apps/web/.prisma/client/ \\; && find . -name 'schema.prisma' -path '*/.prisma/*' -exec cp {} apps/web/.prisma/client/ \\; && ls -la apps/web/.prisma/client/ && pnpm turbo build --filter=@velora/web...",
+  "buildCommand": "bash scripts/vercel-build.sh",
   "installCommand": "pnpm install",
   "framework": "nextjs",
   "outputDirectory": "apps/web/.next"
