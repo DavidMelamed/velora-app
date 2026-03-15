@@ -1,10 +1,7 @@
 /**
  * Socrata SODA API Adapter — Generic adapter for Socrata open data portals.
  * Supports pagination via $offset/$limit. Rate-limited.
- *
- * Socrata datasets used:
- *   - NYC: https://data.cityofnewyork.us/resource/h9gi-nx95.json
- *   - Chicago: https://data.cityofchicago.org/resource/85ca-t3if.json
+ * Tracks cursor position so we only fetch NEW records each run.
  */
 
 import type { BronzeRecord } from '../types'
@@ -24,29 +21,80 @@ export interface SocrataDatasetConfig {
   pageSize?: number
   /** Optional SoQL $where clause */
   where?: string
-  /** Max total records to fetch */
+  /** Max total records to fetch in this run */
   limit?: number
   /** Rate limit between pages in ms */
   rateLimitMs?: number
+  /** Starting offset (for cursor-based resumption) */
+  startOffset?: number
+  /** Order field — defaults to ':id' */
+  orderBy?: string
 }
 
 /** Pre-configured Socrata datasets */
 export const SOCRATA_DATASETS: SocrataDatasetConfig[] = [
+  // ── New York City — Motor Vehicle Collisions ──
   {
     name: 'nyc',
     stateCode: 'NY',
     domain: 'data.cityofnewyork.us',
     datasetId: 'h9gi-nx95',
     pageSize: 1000,
-    rateLimitMs: 500,
+    rateLimitMs: 300,
   },
+  // ── Chicago — Traffic Crashes ──
   {
     name: 'chicago',
     stateCode: 'IL',
     domain: 'data.cityofchicago.org',
     datasetId: '85ca-t3if',
     pageSize: 1000,
-    rateLimitMs: 500,
+    rateLimitMs: 300,
+  },
+  // ── Denver / Colorado — Traffic Accidents ──
+  {
+    name: 'denver',
+    stateCode: 'CO',
+    domain: 'data.colorado.gov',
+    datasetId: 'cpwf-cznk',
+    pageSize: 1000,
+    rateLimitMs: 300,
+  },
+  // ── Colorado Springs — Traffic Crashes ──
+  {
+    name: 'colorado-springs',
+    stateCode: 'CO',
+    domain: 'policedata.coloradosprings.gov',
+    datasetId: 'bjpt-tkzq',
+    pageSize: 1000,
+    rateLimitMs: 300,
+  },
+  // ── Los Angeles — Traffic Collisions ──
+  {
+    name: 'los-angeles',
+    stateCode: 'CA',
+    domain: 'data.lacity.org',
+    datasetId: 'd5tf-ez2w',
+    pageSize: 1000,
+    rateLimitMs: 300,
+  },
+  // ── San Francisco — Traffic Crashes ──
+  {
+    name: 'san-francisco',
+    stateCode: 'CA',
+    domain: 'data.sfgov.org',
+    datasetId: 'ubvf-ztfx',
+    pageSize: 1000,
+    rateLimitMs: 300,
+  },
+  // ── Washington State — Crash Data ──
+  {
+    name: 'washington',
+    stateCode: 'WA',
+    domain: 'data.wa.gov',
+    datasetId: 'qau6-fd9y',
+    pageSize: 1000,
+    rateLimitMs: 300,
   },
 ]
 
@@ -64,6 +112,7 @@ export function getSocrataConfig(name: string): SocrataDatasetConfig | undefined
 /**
  * Async generator that yields BronzeRecord objects from a Socrata SODA API.
  * Handles pagination via $offset/$limit automatically.
+ * Supports startOffset for cursor-based resumption.
  */
 export async function* fetchSocrataCrashes(config: SocrataDatasetConfig): AsyncGenerator<BronzeRecord> {
   const {
@@ -75,16 +124,18 @@ export async function* fetchSocrataCrashes(config: SocrataDatasetConfig): AsyncG
     pageSize = 1000,
     where,
     limit = Infinity,
-    rateLimitMs = 500,
+    rateLimitMs = 300,
+    startOffset = 0,
+    orderBy = ':id',
   } = config
 
-  let offset = 0
+  let offset = startOffset
   let totalYielded = 0
   let hasMore = true
 
   const baseUrl = `https://${domain}/resource/${datasetId}.json`
 
-  console.log(`[Socrata] Starting fetch: dataset=${name} (${datasetId}) domain=${domain}`)
+  console.log(`[Socrata] Starting fetch: dataset=${name} (${datasetId}) domain=${domain} startOffset=${startOffset}`)
 
   while (hasMore && totalYielded < limit) {
     const recordCount = Math.min(pageSize, limit - totalYielded)
@@ -92,7 +143,7 @@ export async function* fetchSocrataCrashes(config: SocrataDatasetConfig): AsyncG
     const params = new URLSearchParams({
       $limit: String(recordCount),
       $offset: String(offset),
-      $order: ':id',
+      $order: orderBy,
     })
 
     if (where) {
@@ -131,7 +182,7 @@ export async function* fetchSocrataCrashes(config: SocrataDatasetConfig): AsyncG
     }
 
     if (!Array.isArray(records) || records.length === 0) {
-      console.log(`[Socrata] No more records at offset=${offset}`)
+      console.log(`[Socrata] No more records at offset=${offset} — dataset exhausted`)
       break
     }
 
@@ -155,5 +206,5 @@ export async function* fetchSocrataCrashes(config: SocrataDatasetConfig): AsyncG
     }
   }
 
-  console.log(`[Socrata] Yielded ${totalYielded} records for ${name}`)
+  console.log(`[Socrata] Yielded ${totalYielded} records for ${name} (final offset: ${offset})`)
 }

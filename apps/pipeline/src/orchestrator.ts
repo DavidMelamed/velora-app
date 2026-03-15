@@ -23,6 +23,8 @@ export interface IngestOptions {
   toYear?: number
   /** For Socrata: dataset name (e.g. "nyc", "chicago") */
   socrataDataset?: string
+  /** Starting offset for cursor-based resumption */
+  startOffset?: number
 }
 
 export interface IngestResult {
@@ -113,6 +115,7 @@ export async function runIngestion(options: IngestOptions): Promise<IngestResult
         ...config,
         limit: options.limit,
         appToken: process.env.SOCRATA_APP_TOKEN,
+        startOffset: options.startOffset,
       })
       for await (const record of gen) {
         bronzeRecords.push(record)
