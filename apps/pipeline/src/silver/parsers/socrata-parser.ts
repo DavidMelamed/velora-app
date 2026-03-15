@@ -166,20 +166,189 @@ function parseChicagoRecord(bronze: BronzeRecord): SocrataParsedResult | null {
 }
 
 /**
+ * Parse Denver/Colorado Traffic Accidents (dataset cpwf-cznk).
+ * Fields: incident_id, reported_date, incident_address, geo_lat, geo_lon,
+ *         top_traffic_accident_offense, seriously_injured, fatalities
+ */
+function parseDenverRecord(bronze: BronzeRecord): SocrataParsedResult | null {
+  const raw = bronze.rawData
+
+  const dateStr = asStr(raw.reported_date) ?? asStr(raw.first_occurrence_date)
+  if (!dateStr) return null
+
+  const parsedDate = new Date(dateStr)
+  if (isNaN(parsedDate.getTime())) return null
+
+  const incidentId = asStr(raw.incident_id) ?? `den-${parsedDate.getTime()}-${Math.random().toString(36).slice(2, 8)}`
+  const killed = asNum(raw.fatalities) ?? 0
+  const seriousInjury = asNum(raw.seriously_injured) ?? 0
+
+  const crash: Partial<CrashSilver> = {
+    stateUniqueId: `DEN-${incidentId}`,
+    crashDate: parsedDate,
+    county: 'DENVER',
+    cityName: 'Denver',
+    latitude: asNum(raw.geo_lat),
+    longitude: asNum(raw.geo_lon),
+    crashSeverity: killed > 0 ? 'FATAL' : seriousInjury > 0 ? 'SUSPECTED_SERIOUS_INJURY' : 'PROPERTY_DAMAGE_ONLY',
+    stateCode: 'CO',
+    dataSource: 'socrata-denver',
+  }
+
+  return { crash, vehicles: [], persons: [] }
+}
+
+/**
+ * Parse Colorado Springs Traffic Crashes (dataset bjpt-tkzq).
+ */
+function parseColoradoSpringsRecord(bronze: BronzeRecord): SocrataParsedResult | null {
+  const raw = bronze.rawData
+
+  const dateStr = asStr(raw.crash_date) ?? asStr(raw.date_reported) ?? asStr(raw.reported_date)
+  if (!dateStr) return null
+
+  const parsedDate = new Date(dateStr)
+  if (isNaN(parsedDate.getTime())) return null
+
+  const crashId = asStr(raw.case_number) ?? asStr(raw.crash_id) ?? `cos-${parsedDate.getTime()}-${Math.random().toString(36).slice(2, 8)}`
+
+  const crash: Partial<CrashSilver> = {
+    stateUniqueId: `COS-${crashId}`,
+    crashDate: parsedDate,
+    county: 'EL PASO',
+    cityName: 'Colorado Springs',
+    latitude: asNum(raw.latitude) ?? asNum(raw.geo_lat),
+    longitude: asNum(raw.longitude) ?? asNum(raw.geo_lon),
+    crashSeverity: mapSeverity(raw.severity) ?? mapSeverity(raw.crash_severity) ?? 'PROPERTY_DAMAGE_ONLY',
+    stateCode: 'CO',
+    dataSource: 'socrata-colorado-springs',
+  }
+
+  return { crash, vehicles: [], persons: [] }
+}
+
+/**
+ * Parse Los Angeles Traffic Collisions (dataset d5tf-ez2w).
+ * Fields: dr_no, date_occ, time_occ, area_name, location, lat, lon
+ */
+function parseLosAngelesRecord(bronze: BronzeRecord): SocrataParsedResult | null {
+  const raw = bronze.rawData
+
+  const dateStr = asStr(raw.date_occ) ?? asStr(raw.date_rptd)
+  if (!dateStr) return null
+
+  const parsedDate = new Date(dateStr)
+  if (isNaN(parsedDate.getTime())) return null
+
+  const drNo = asStr(raw.dr_no) ?? `la-${parsedDate.getTime()}-${Math.random().toString(36).slice(2, 8)}`
+
+  const crash: Partial<CrashSilver> = {
+    stateUniqueId: `LA-${drNo}`,
+    crashDate: parsedDate,
+    crashTime: asStr(raw.time_occ),
+    county: 'LOS ANGELES',
+    cityName: 'Los Angeles',
+    latitude: asNum(raw.lat),
+    longitude: asNum(raw.lon),
+    stateCode: 'CA',
+    dataSource: 'socrata-los-angeles',
+    crashSeverity: 'PROPERTY_DAMAGE_ONLY',
+  }
+
+  return { crash, vehicles: [], persons: [] }
+}
+
+/**
+ * Parse San Francisco Traffic Crashes (dataset ubvf-ztfx).
+ * Fields: case_id, collision_date, collision_time, weather_1, lighting, latitude, longitude
+ */
+function parseSanFranciscoRecord(bronze: BronzeRecord): SocrataParsedResult | null {
+  const raw = bronze.rawData
+
+  const dateStr = asStr(raw.collision_date) ?? asStr(raw.accident_date)
+  if (!dateStr) return null
+
+  const parsedDate = new Date(dateStr)
+  if (isNaN(parsedDate.getTime())) return null
+
+  const caseId = asStr(raw.case_id) ?? asStr(raw.unique_id) ?? `sf-${parsedDate.getTime()}-${Math.random().toString(36).slice(2, 8)}`
+  const killed = asNum(raw.killed_victims) ?? asNum(raw.number_killed) ?? 0
+  const injured = asNum(raw.injured_victims) ?? asNum(raw.number_injured) ?? 0
+
+  const crash: Partial<CrashSilver> = {
+    stateUniqueId: `SF-${caseId}`,
+    crashDate: parsedDate,
+    crashTime: asStr(raw.collision_time),
+    county: 'SAN FRANCISCO',
+    cityName: 'San Francisco',
+    latitude: asNum(raw.latitude) ?? asNum(raw.point?.coordinates?.[1]),
+    longitude: asNum(raw.longitude) ?? asNum(raw.point?.coordinates?.[0]),
+    crashSeverity: killed > 0 ? 'FATAL' : injured > 0 ? 'SUSPECTED_MINOR_INJURY' : 'PROPERTY_DAMAGE_ONLY',
+    atmosphericCondition: mapWeather(raw.weather_1),
+    lightCondition: mapLight(raw.lighting),
+    stateCode: 'CA',
+    dataSource: 'socrata-san-francisco',
+  }
+
+  return { crash, vehicles: [], persons: [] }
+}
+
+/**
+ * Generic fallback parser for unknown Socrata datasets.
+ * Tries common field names to extract crash data.
+ */
+function parseGenericSocrataRecord(bronze: BronzeRecord): SocrataParsedResult | null {
+  const raw = bronze.rawData
+
+  // Try common date fields
+  const dateStr = asStr(raw.crash_date) ?? asStr(raw.date) ?? asStr(raw.collision_date) ?? asStr(raw.reported_date) ?? asStr(raw.date_occ)
+  if (!dateStr) return null
+
+  const parsedDate = new Date(dateStr)
+  if (isNaN(parsedDate.getTime())) return null
+
+  // Try common ID fields
+  const uniqueId = asStr(raw.crash_id) ?? asStr(raw.case_id) ?? asStr(raw.incident_id) ?? asStr(raw.objectid) ?? `gen-${parsedDate.getTime()}-${Math.random().toString(36).slice(2, 8)}`
+
+  const crash: Partial<CrashSilver> = {
+    stateUniqueId: `${bronze.stateCode}-${uniqueId}`,
+    crashDate: parsedDate,
+    county: asStr(raw.county) ?? asStr(raw.county_name),
+    cityName: asStr(raw.city) ?? asStr(raw.city_name),
+    latitude: asNum(raw.latitude) ?? asNum(raw.lat),
+    longitude: asNum(raw.longitude) ?? asNum(raw.lon) ?? asNum(raw.long),
+    crashSeverity: mapSeverity(raw.severity) ?? mapSeverity(raw.crash_severity) ?? mapSeverity(raw.most_severe_injury) ?? 'PROPERTY_DAMAGE_ONLY',
+    atmosphericCondition: mapWeather(raw.weather) ?? mapWeather(raw.weather_condition),
+    lightCondition: mapLight(raw.lighting) ?? mapLight(raw.lighting_condition) ?? mapLight(raw.light_condition),
+    stateCode: bronze.stateCode,
+    dataSource: bronze.source,
+  }
+
+  return { crash, vehicles: [], persons: [] }
+}
+
+/**
  * Parse a Socrata BronzeRecord based on its source.
- * Routes to city-specific parser.
+ * Routes to city-specific parser, falls back to generic.
  */
 export function parseSocrataRecord(bronze: BronzeRecord): SocrataParsedResult | null {
   const source = bronze.source
 
-  if (source === 'socrata-nyc') {
-    return parseNYCRecord(bronze)
+  switch (source) {
+    case 'socrata-nyc':
+      return parseNYCRecord(bronze)
+    case 'socrata-chicago':
+      return parseChicagoRecord(bronze)
+    case 'socrata-denver':
+      return parseDenverRecord(bronze)
+    case 'socrata-colorado-springs':
+      return parseColoradoSpringsRecord(bronze)
+    case 'socrata-los-angeles':
+      return parseLosAngelesRecord(bronze)
+    case 'socrata-san-francisco':
+      return parseSanFranciscoRecord(bronze)
+    default:
+      // Try generic parser as fallback
+      return parseGenericSocrataRecord(bronze)
   }
-
-  if (source === 'socrata-chicago') {
-    return parseChicagoRecord(bronze)
-  }
-
-  console.warn(`[SocrataParser] Unknown Socrata source: ${source}`)
-  return null
 }
