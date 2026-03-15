@@ -1,10 +1,13 @@
 /**
- * Attorney Gold Publisher — upserts attorney listings and reviews into Prisma.
+ * Attorney Gold Publisher — upserts attorney profiles and reviews into Prisma.
  * Idempotent via googlePlaceId upsert.
+ * Captures ALL business profile and review fields from DataForSEO.
  */
 
-import { prisma } from '@velora/db'
-import type { GoogleMapsListing, GoogleReviewItem, AttorneySearchResult } from '../bronze/sources/dataforseo-adapter'
+import { prisma, type Prisma } from '@velora/db'
+import type { GoogleBusinessProfile, GoogleReviewFull, AttorneySearchResult } from '../bronze/sources/dataforseo-adapter'
+
+type JsonValue = Prisma.InputJsonValue
 
 export interface AttorneyPublishResult {
   created: number
@@ -14,41 +17,16 @@ export interface AttorneyPublishResult {
 }
 
 function slugify(name: string, city: string | null, stateCode: string): string {
-  const base = [name, city, stateCode]
+  return [name, city, stateCode]
     .filter(Boolean)
     .join('-')
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/(^-|-$)/g, '')
-  return base
 }
 
-function parseAddress(address: string | null): {
-  city: string | null
-  stateCode: string | null
-  zipCode: string | null
-} {
-  if (!address) return { city: null, stateCode: null, zipCode: null }
-
-  // Try to parse "123 Main St, City, ST 12345" format
-  const parts = address.split(',').map((s) => s.trim())
-  if (parts.length >= 2) {
-    const lastPart = parts[parts.length - 1]!
-    const stateZipMatch = lastPart.match(/([A-Z]{2})\s*(\d{5})?/)
-    const city = parts.length >= 3 ? parts[parts.length - 2]! : null
-
-    return {
-      city: city,
-      stateCode: stateZipMatch?.[1] ?? null,
-      zipCode: stateZipMatch?.[2] ?? null,
-    }
-  }
-
-  return { city: null, stateCode: null, zipCode: null }
-}
-
-function inferPracticeAreas(title: string, category: string | null): string[] {
-  const text = `${title} ${category ?? ''}`.toLowerCase()
+function inferPracticeAreas(title: string, category: string | null, additionalCategories: string[]): string[] {
+  const text = `${title} ${category ?? ''} ${additionalCategories.join(' ')}`.toLowerCase()
   const areas: string[] = []
 
   if (text.includes('personal injury')) areas.push('personal_injury')
@@ -60,16 +38,23 @@ function inferPracticeAreas(title: string, category: string | null): string[] {
   if (text.includes('slip') || text.includes('premises')) areas.push('premises_liability')
   if (text.includes('medical malpractice') || text.includes('med mal')) areas.push('medical_malpractice')
   if (text.includes('workers') || text.includes('work comp')) areas.push('workers_compensation')
+  if (text.includes('dog bite') || text.includes('animal')) areas.push('dog_bite')
+  if (text.includes('product liability') || text.includes('defective')) areas.push('product_liability')
 
-  // Default to personal_injury if we found nothing specific
   if (areas.length === 0) areas.push('personal_injury')
-
   return areas
+}
+
+function parseAddressForZip(address: string | null, addressInfo: Record<string, string> | null): string | null {
+  if (addressInfo?.zip || addressInfo?.postal_code) return addressInfo.zip ?? addressInfo.postal_code ?? null
+  if (!address) return null
+  const zipMatch = address.match(/\b(\d{5}(?:-\d{4})?)\b/)
+  return zipMatch?.[1] ?? null
 }
 
 /**
  * Publish attorney search results to the database.
- * Upserts by googlePlaceId for idempotency.
+ * Full upsert of all business profile fields + all review fields.
  */
 export async function publishAttorneys(
   results: AttorneySearchResult[],
@@ -82,17 +67,49 @@ export async function publishAttorneys(
     errors: [],
   }
 
-  for (const { listing, reviews } of results) {
+  for (const { profile, reviews } of results) {
     try {
-      const parsed = parseAddress(listing.address)
-      const city = locationOverride?.city ?? parsed.city
-      const stateCode = locationOverride?.stateCode ?? parsed.stateCode
-      const practiceAreas = inferPracticeAreas(listing.title, listing.category)
+      const city = locationOverride?.city ?? (profile.addressInfo as Record<string, string> | null)?.city ?? null
+      const stateCode = locationOverride?.stateCode ?? (profile.addressInfo as Record<string, string> | null)?.region ?? null
+      const zipCode = parseAddressForZip(profile.address, profile.addressInfo as Record<string, string> | null)
+      const practiceAreas = inferPracticeAreas(profile.title, profile.category, profile.additionalCategories)
 
-      // Check if attorney already exists
-      const existing = listing.placeId
+      // Common data for create/update
+      const profileData = {
+        name: profile.title,
+        phone: profile.phone,
+        website: profile.website,
+        domain: profile.domain,
+        address: profile.address,
+        addressInfo: (profile.addressInfo as JsonValue) ?? undefined,
+        city,
+        stateCode,
+        zipCode,
+        latitude: profile.latitude,
+        longitude: profile.longitude,
+        description: profile.description,
+        category: profile.category,
+        categoryIds: profile.categoryIds,
+        additionalCategories: profile.additionalCategories,
+        logoUrl: profile.logoUrl,
+        mainImageUrl: profile.mainImageUrl,
+        totalPhotos: profile.totalPhotos,
+        isClaimed: profile.isClaimed,
+        googleRating: profile.rating,
+        googleReviewCount: profile.reviewCount,
+        ratingDistribution: (profile.ratingDistribution as JsonValue) ?? undefined,
+        workHours: (profile.workHours as JsonValue) ?? undefined,
+        attributes: (profile.attributes as JsonValue) ?? undefined,
+        peopleAlsoSearch: (profile.peopleAlsoSearch as JsonValue) ?? undefined,
+        googleMapsUrl: profile.googleMapsUrl,
+        contactInfo: (profile.contactInfo as JsonValue) ?? undefined,
+        practiceAreas,
+      }
+
+      // Check if attorney already exists by placeId
+      const existing = profile.placeId
         ? await prisma.attorney.findUnique({
-            where: { googlePlaceId: listing.placeId },
+            where: { googlePlaceId: profile.placeId },
             select: { id: true },
           })
         : null
@@ -100,89 +117,79 @@ export async function publishAttorneys(
       let attorneyId: string
 
       if (existing) {
-        // Update
         await prisma.attorney.update({
           where: { id: existing.id },
           data: {
-            name: listing.title,
-            phone: listing.phone,
-            website: listing.website,
-            address: listing.address,
-            city,
-            stateCode,
-            zipCode: parsed.zipCode,
-            latitude: listing.latitude,
-            longitude: listing.longitude,
-            practiceAreas,
+            ...profileData,
+            googleCid: profile.cid ?? undefined,
           },
         })
         attorneyId = existing.id
         stats.updated++
       } else {
-        // Create
-        const slug = slugify(listing.title, city, stateCode ?? 'US')
-
-        // Handle slug collision by appending a hash
-        let finalSlug = slug
+        const baseSlug = slugify(profile.title, city, stateCode ?? 'US')
+        let finalSlug = baseSlug
         const slugExists = await prisma.attorney.findUnique({
           where: { slug: finalSlug },
           select: { id: true },
         })
         if (slugExists) {
-          finalSlug = `${slug}-${listing.placeId.slice(-6)}`
+          finalSlug = `${baseSlug}-${profile.placeId.slice(-6)}`
         }
 
         const created = await prisma.attorney.create({
           data: {
             slug: finalSlug,
-            name: listing.title,
-            googlePlaceId: listing.placeId,
-            phone: listing.phone,
-            website: listing.website,
-            address: listing.address,
-            city,
-            stateCode,
-            zipCode: parsed.zipCode,
-            latitude: listing.latitude,
-            longitude: listing.longitude,
-            practiceAreas,
+            googlePlaceId: profile.placeId || undefined,
+            googleCid: profile.cid ?? undefined,
+            ...profileData,
           },
         })
         attorneyId = created.id
         stats.created++
       }
 
-      // Upsert reviews
-      if (reviews.length > 0) {
-        for (const review of reviews) {
-          try {
-            await prisma.attorneyReview.upsert({
-              where: {
-                googleReviewId: review.reviewId,
-              },
-              update: {
-                rating: review.rating,
-                text: review.text,
-              },
-              create: {
-                attorneyId,
-                googleReviewId: review.reviewId,
-                authorName: review.authorName,
-                rating: review.rating,
-                text: review.text,
-                publishedAt: review.publishedAt,
-                language: review.language,
-              },
-            })
-            stats.reviewsAdded++
-          } catch (reviewErr) {
-            // Skip individual review errors (e.g. duplicate constraint)
-          }
+      // Upsert all reviews with extended fields
+      for (const review of reviews) {
+        try {
+          await prisma.attorneyReview.upsert({
+            where: { googleReviewId: review.reviewId },
+            update: {
+              rating: review.rating,
+              text: review.text,
+              ownerResponse: review.ownerResponse,
+              ownerResponseAt: review.ownerResponseTimestamp,
+              isLocalGuide: review.isLocalGuide,
+              photosCount: review.photosCount,
+              images: (review.images as JsonValue) ?? undefined,
+            },
+            create: {
+              attorneyId,
+              googleReviewId: review.reviewId,
+              authorName: review.authorName,
+              authorImageUrl: review.authorImageUrl,
+              authorProfileUrl: review.authorProfileUrl,
+              rating: review.rating,
+              text: review.text,
+              reviewUrl: review.reviewUrl,
+              publishedAt: review.publishedAt,
+              timeAgo: review.timeAgo,
+              language: review.language,
+              isLocalGuide: review.isLocalGuide,
+              photosCount: review.photosCount,
+              images: (review.images as JsonValue) ?? undefined,
+              ownerResponse: review.ownerResponse,
+              ownerResponseAt: review.ownerResponseTimestamp,
+            },
+          })
+          stats.reviewsAdded++
+        } catch {
+          // Skip individual review errors (duplicate constraints, etc.)
         }
       }
     } catch (error) {
       stats.errors.push({
-        placeId: listing.placeId,
+        placeId: profile.placeId,
         error: error instanceof Error ? error.message : String(error),
       })
     }

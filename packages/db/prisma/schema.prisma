@@ -231,15 +231,36 @@ model Attorney {
   phone             String?
   email             String?
   website           String?
+  domain            String?
   googlePlaceId     String?   @unique
+  googleCid         String?   @unique
 
   // Location
   address           String?
+  addressInfo       Json?     // Structured address components
   city              String?
   stateCode         String?
   zipCode           String?
   latitude          Float?
   longitude         Float?
+
+  // Google Business Profile
+  description       String?
+  category          String?
+  categoryIds       String[]
+  additionalCategories String[]
+  logoUrl           String?
+  mainImageUrl      String?
+  totalPhotos       Int?      @default(0)
+  isClaimed         Boolean?  @default(false)
+  googleRating      Float?
+  googleReviewCount Int?      @default(0)
+  ratingDistribution Json?    // { "1": 5, "2": 3, "3": 10, ... }
+  workHours         Json?
+  attributes        Json?     // Business attributes from Google
+  peopleAlsoSearch  Json?     // Related businesses
+  googleMapsUrl     String?
+  contactInfo       Json?     // Array of { type, value, source }
 
   // Specializations
   practiceAreas     String[]
@@ -257,6 +278,7 @@ model Attorney {
   @@index([stateCode])
   @@index([city])
   @@index([latitude, longitude])
+  @@index([googleRating])
 }
 
 model AttorneyReview {
@@ -264,13 +286,24 @@ model AttorneyReview {
   attorneyId      String
   attorney        Attorney  @relation(fields: [attorneyId], references: [id], onDelete: Cascade)
 
-  // Google Places data
+  // Google review data
   googleReviewId  String?   @unique
   authorName      String?
+  authorImageUrl  String?
+  authorProfileUrl String?
   rating          Int       // 1-5
   text            String?
+  reviewUrl       String?
   publishedAt     DateTime?
+  timeAgo         String?
   language        String?   @default("en")
+
+  // Extended review fields
+  isLocalGuide    Boolean?  @default(false)
+  photosCount     Int?      @default(0)
+  images          Json?     // Array of { image_url, alt }
+  ownerResponse   String?
+  ownerResponseAt String?   // timestamp string from DataForSEO
 
   // Analyzed dimensions
   dimensions      Json?
