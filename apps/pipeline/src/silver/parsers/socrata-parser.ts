@@ -173,21 +173,29 @@ function parseChicagoRecord(bronze: BronzeRecord): SocrataParsedResult | null {
 function parseDenverRecord(bronze: BronzeRecord): SocrataParsedResult | null {
   const raw = bronze.rawData
 
-  const dateStr = asStr(raw.reported_date) ?? asStr(raw.first_occurrence_date)
-  if (!dateStr) return null
+  // Denver fields are truncated: reported_d, first_occu, incident_i, etc.
+  // Values can be epoch ms strings OR ISO date strings
+  const rawDate = raw.reported_d ?? raw.reported_date ?? raw.first_occu ?? raw.first_occurrence_date
+  if (!rawDate) return null
 
-  const parsedDate = new Date(dateStr)
+  let parsedDate: Date
+  const dateVal = String(rawDate)
+  // Check if it's epoch milliseconds (all digits, 13+ chars)
+  if (/^\d{10,}(\.\d+)?$/.test(dateVal)) {
+    parsedDate = new Date(parseInt(dateVal))
+  } else {
+    parsedDate = new Date(dateVal)
+  }
   if (isNaN(parsedDate.getTime())) return null
 
-  const incidentId = asStr(raw.incident_id) ?? `den-${parsedDate.getTime()}-${Math.random().toString(36).slice(2, 8)}`
-  const killed = asNum(raw.fatalities) ?? 0
-  const seriousInjury = asNum(raw.seriously_injured) ?? 0
+  const incidentId = asStr(raw.incident_i) ?? asStr(raw.incident_id) ?? `den-${parsedDate.getTime()}-${Math.random().toString(36).slice(2, 8)}`
+  const killed = asNum(raw.fatalities) ?? asNum(raw.fatality_1) ?? 0
+  const seriousInjury = asNum(raw.seriously_) ?? asNum(raw.seriously_injured) ?? 0
 
   const crash: Partial<CrashSilver> = {
     stateUniqueId: `DEN-${incidentId}`,
     crashDate: parsedDate,
     county: 'DENVER',
-    cityName: 'Denver',
     latitude: asNum(raw.geo_lat),
     longitude: asNum(raw.geo_lon),
     crashSeverity: killed > 0 ? 'FATAL' : seriousInjury > 0 ? 'SUSPECTED_SERIOUS_INJURY' : 'PROPERTY_DAMAGE_ONLY',
@@ -204,22 +212,24 @@ function parseDenverRecord(bronze: BronzeRecord): SocrataParsedResult | null {
 function parseColoradoSpringsRecord(bronze: BronzeRecord): SocrataParsedResult | null {
   const raw = bronze.rawData
 
-  const dateStr = asStr(raw.crash_date) ?? asStr(raw.date_reported) ?? asStr(raw.reported_date)
+  // CO Springs uses accidentdatetime, not crash_date
+  const dateStr = asStr(raw.accidentdatetime) ?? asStr(raw.crash_date) ?? asStr(raw.date_reported) ?? asStr(raw.reported_date)
   if (!dateStr) return null
 
   const parsedDate = new Date(dateStr)
   if (isNaN(parsedDate.getTime())) return null
 
-  const crashId = asStr(raw.case_number) ?? asStr(raw.crash_id) ?? `cos-${parsedDate.getTime()}-${Math.random().toString(36).slice(2, 8)}`
+  const crashId = asStr(raw.accidentnumber) ?? asStr(raw.case_number) ?? asStr(raw.crash_id) ?? `cos-${parsedDate.getTime()}-${Math.random().toString(36).slice(2, 8)}`
+  const killed = asNum(raw.numberofkilled) ?? 0
+  const injured = asNum(raw.numberofinjured) ?? 0
 
   const crash: Partial<CrashSilver> = {
     stateUniqueId: `COS-${crashId}`,
     crashDate: parsedDate,
     county: 'EL PASO',
-    cityName: 'Colorado Springs',
     latitude: asNum(raw.latitude) ?? asNum(raw.geo_lat),
     longitude: asNum(raw.longitude) ?? asNum(raw.geo_lon),
-    crashSeverity: mapSeverity(raw.severity) ?? mapSeverity(raw.crash_severity) ?? 'PROPERTY_DAMAGE_ONLY',
+    crashSeverity: killed > 0 ? 'FATAL' : injured > 0 ? 'SUSPECTED_MINOR_INJURY' : mapSeverity(raw.severity) ?? 'PROPERTY_DAMAGE_ONLY',
     stateCode: 'CO',
     dataSource: 'socrata-colorado-springs',
   }
@@ -242,14 +252,18 @@ function parseLosAngelesRecord(bronze: BronzeRecord): SocrataParsedResult | null
 
   const drNo = asStr(raw.dr_no) ?? `la-${parsedDate.getTime()}-${Math.random().toString(36).slice(2, 8)}`
 
+  // LA has location_1 as {latitude, longitude} object, not top-level lat/lon
+  const loc = raw.location_1 as { latitude?: string; longitude?: string } | undefined
+  const lat = asNum(raw.lat) ?? asNum(loc?.latitude)
+  const lon = asNum(raw.lon) ?? asNum(loc?.longitude)
+
   const crash: Partial<CrashSilver> = {
     stateUniqueId: `LA-${drNo}`,
     crashDate: parsedDate,
     crashTime: asStr(raw.time_occ),
     county: 'LOS ANGELES',
-    cityName: 'Los Angeles',
-    latitude: asNum(raw.lat),
-    longitude: asNum(raw.lon),
+    latitude: lat,
+    longitude: lon,
     stateCode: 'CA',
     dataSource: 'socrata-los-angeles',
     crashSeverity: 'PROPERTY_DAMAGE_ONLY',
@@ -271,18 +285,19 @@ function parseSanFranciscoRecord(bronze: BronzeRecord): SocrataParsedResult | nu
   const parsedDate = new Date(dateStr)
   if (isNaN(parsedDate.getTime())) return null
 
-  const caseId = asStr(raw.case_id) ?? asStr(raw.unique_id) ?? `sf-${parsedDate.getTime()}-${Math.random().toString(36).slice(2, 8)}`
-  const killed = asNum(raw.killed_victims) ?? asNum(raw.number_killed) ?? 0
-  const injured = asNum(raw.injured_victims) ?? asNum(raw.number_injured) ?? 0
+  const caseId = asStr(raw.case_id_pkey) ?? asStr(raw.case_id) ?? asStr(raw.unique_id) ?? `sf-${parsedDate.getTime()}-${Math.random().toString(36).slice(2, 8)}`
+  const killed = asNum(raw.number_killed) ?? asNum(raw.killed_victims) ?? 0
+  const injured = asNum(raw.number_injured) ?? asNum(raw.injured_victims) ?? 0
 
+  // SF has tb_latitude/tb_longitude and point geometry
+  const pointCoords = (raw.point as { coordinates?: number[] })?.coordinates
   const crash: Partial<CrashSilver> = {
     stateUniqueId: `SF-${caseId}`,
     crashDate: parsedDate,
     crashTime: asStr(raw.collision_time),
     county: 'SAN FRANCISCO',
-    cityName: 'San Francisco',
-    latitude: asNum(raw.latitude) ?? asNum(raw.point?.coordinates?.[1]),
-    longitude: asNum(raw.longitude) ?? asNum(raw.point?.coordinates?.[0]),
+    latitude: asNum(raw.tb_latitude) ?? asNum(raw.latitude) ?? asNum(pointCoords?.[1]),
+    longitude: asNum(raw.tb_longitude) ?? asNum(raw.longitude) ?? asNum(pointCoords?.[0]),
     crashSeverity: killed > 0 ? 'FATAL' : injured > 0 ? 'SUSPECTED_MINOR_INJURY' : 'PROPERTY_DAMAGE_ONLY',
     atmosphericCondition: mapWeather(raw.weather_1),
     lightCondition: mapLight(raw.lighting),
@@ -314,7 +329,6 @@ function parseGenericSocrataRecord(bronze: BronzeRecord): SocrataParsedResult | 
     stateUniqueId: `${bronze.stateCode}-${uniqueId}`,
     crashDate: parsedDate,
     county: asStr(raw.county) ?? asStr(raw.county_name),
-    cityName: asStr(raw.city) ?? asStr(raw.city_name),
     latitude: asNum(raw.latitude) ?? asNum(raw.lat),
     longitude: asNum(raw.longitude) ?? asNum(raw.lon) ?? asNum(raw.long),
     crashSeverity: mapSeverity(raw.severity) ?? mapSeverity(raw.crash_severity) ?? mapSeverity(raw.most_severe_injury) ?? 'PROPERTY_DAMAGE_ONLY',

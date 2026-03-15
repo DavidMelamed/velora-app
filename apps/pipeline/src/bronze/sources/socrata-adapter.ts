@@ -96,6 +96,24 @@ export const SOCRATA_DATASETS: SocrataDatasetConfig[] = [
     pageSize: 1000,
     rateLimitMs: 300,
   },
+  // ── Colorado Statewide — Crash Reporting Incidents ──
+  {
+    name: 'colorado-statewide',
+    stateCode: 'CO',
+    domain: 'data.colorado.gov',
+    datasetId: 'bhju-22kf',
+    pageSize: 1000,
+    rateLimitMs: 300,
+  },
+  // ── Austin, TX — Traffic Crashes ──
+  {
+    name: 'austin',
+    stateCode: 'TX',
+    domain: 'data.austintexas.gov',
+    datasetId: 'y2wy-tgr5',
+    pageSize: 1000,
+    rateLimitMs: 300,
+  },
 ]
 
 function sleep(ms: number): Promise<void> {
