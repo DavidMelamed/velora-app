@@ -1,3 +1,5 @@
+export const revalidate = 3600 // Revalidate homepage every hour
+
 import { Suspense } from 'react'
 import { HeroSearch } from '@/components/home/HeroSearch'
 import { RecentCrashes } from '@/components/home/RecentCrashes'

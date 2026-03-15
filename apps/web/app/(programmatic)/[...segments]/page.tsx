@@ -1,3 +1,5 @@
+export const revalidate = 3600 // Revalidate programmatic pages every hour
+
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { prisma } from '@velora/db'
