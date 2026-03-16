@@ -13,13 +13,26 @@ router.post('/trigger', async (req, res) => {
       stage?: string
     }
 
+    // Find or create a manual data source
+    let dataSource = await prisma.dataSource.findFirst({
+      where: { name: source || 'manual' },
+    })
+    if (!dataSource) {
+      dataSource = await prisma.dataSource.create({
+        data: {
+          name: source || 'manual',
+          type: 'API',
+          baseUrl: '',
+        },
+      })
+    }
+
     // Create a new pipeline run record
     const run = await prisma.pipelineRun.create({
       data: {
         status: 'QUEUED',
         stage: stage || 'BRONZE',
-        source: source || 'manual',
-        config: { stateCode, triggeredBy: 'api' },
+        dataSourceId: dataSource.id,
       },
     })
 
@@ -51,13 +64,14 @@ router.get('/status', async (req, res) => {
           id: true,
           status: true,
           stage: true,
-          source: true,
+          dataSourceId: true,
           startedAt: true,
           completedAt: true,
           recordsIn: true,
           recordsOut: true,
+          recordsFailed: true,
           durationMs: true,
-          errorMessage: true,
+          errorLog: true,
         },
       }),
       prisma.pipelineRun.groupBy({
