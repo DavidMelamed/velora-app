@@ -1,0 +1,9 @@
+data/
+*.log
+.next/
+apps/web/.next/
+apps/mobile/
+apps/pipeline/
+apps/mcp-server/
+.git/
+.turbo/

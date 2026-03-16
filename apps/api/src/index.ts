@@ -15,6 +15,9 @@ import learningMetricsRoutes from './routes/admin/learning-metrics'
 const app = express()
 const PORT = process.env.PORT || 4000
 
+// Trust proxy (Railway, Vercel, etc.)
+app.set('trust proxy', 1)
+
 // Middleware
 app.use(helmet())
 app.use(cors({ origin: process.env.CORS_ORIGINS?.split(',') || ['http://localhost:3000'] }))

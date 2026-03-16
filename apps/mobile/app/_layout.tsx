@@ -16,7 +16,12 @@ export default function RootLayout() {
     registerForPushNotifications().then((token) => {
       if (token) {
         console.log('[Velora] Push token:', token)
-        // TODO: Send token to backend for server-side push
+        const apiUrl = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:4000'
+        fetch(`${apiUrl}/api/push-token`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token, platform: 'expo' }),
+        }).catch((err) => console.warn('[Velora] Failed to register push token:', err))
       }
     })
   }, [])

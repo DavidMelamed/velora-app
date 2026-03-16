@@ -1,16 +1,111 @@
 import { Router } from 'express'
+import { prisma } from '@velora/db'
 import { extractFromImage, validateImageUpload } from '../services/pipeline/ocr-service'
 
 const router = Router()
 
 // POST /api/pipeline/trigger — Trigger a pipeline run
-router.post('/trigger', async (_req, res) => {
-  res.json({ success: false, message: 'Pipeline trigger not yet implemented' })
+router.post('/trigger', async (req, res) => {
+  try {
+    const { source, stateCode, stage } = req.body as {
+      source?: string
+      stateCode?: string
+      stage?: string
+    }
+
+    // Create a new pipeline run record
+    const run = await prisma.pipelineRun.create({
+      data: {
+        status: 'QUEUED',
+        stage: stage || 'BRONZE',
+        source: source || 'manual',
+        config: { stateCode, triggeredBy: 'api' },
+      },
+    })
+
+    res.json({
+      success: true,
+      runId: run.id,
+      status: run.status,
+      message: `Pipeline run ${run.id} queued`,
+    })
+  } catch (error) {
+    console.error('[Pipeline] Trigger error:', error)
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to trigger pipeline',
+    })
+  }
 })
 
-// GET /api/pipeline/status — Get pipeline status
-router.get('/status', async (_req, res) => {
-  res.json({ status: 'idle', runs: [], message: 'Pipeline status not yet implemented' })
+// GET /api/pipeline/status — Get pipeline status and recent runs
+router.get('/status', async (req, res) => {
+  try {
+    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit as string) || 10))
+
+    const [runs, counts] = await Promise.all([
+      prisma.pipelineRun.findMany({
+        orderBy: { startedAt: 'desc' },
+        take: limit,
+        select: {
+          id: true,
+          status: true,
+          stage: true,
+          source: true,
+          startedAt: true,
+          completedAt: true,
+          recordsIn: true,
+          recordsOut: true,
+          durationMs: true,
+          errorMessage: true,
+        },
+      }),
+      prisma.pipelineRun.groupBy({
+        by: ['status'],
+        _count: true,
+      }),
+    ])
+
+    const latestRun = runs[0] ?? null
+    const statusCounts = Object.fromEntries(
+      counts.map((c) => [c.status, c._count])
+    )
+
+    res.json({
+      status: latestRun?.status === 'RUNNING' ? 'running' : 'idle',
+      latestRun,
+      runs,
+      summary: statusCounts,
+    })
+  } catch (error) {
+    console.error('[Pipeline] Status error:', error)
+    res.status(500).json({
+      status: 'error',
+      error: error instanceof Error ? error.message : 'Failed to get pipeline status',
+    })
+  }
+})
+
+// GET /api/pipeline/dead-letters — Get dead letter queue entries
+router.get('/dead-letters', async (req, res) => {
+  try {
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 20))
+    const page = Math.max(1, parseInt(req.query.page as string) || 1)
+
+    const [data, total] = await Promise.all([
+      prisma.pipelineDeadLetter.findMany({
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      prisma.pipelineDeadLetter.count(),
+    ])
+
+    res.json({ data, total, page, limit })
+  } catch (error) {
+    console.error('[Pipeline] Dead letters error:', error)
+    res.status(500).json({ error: 'Failed to get dead letters' })
+  }
 })
 
 // POST /api/pipeline/ocr — Process police report image via OCR

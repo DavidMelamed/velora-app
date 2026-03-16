@@ -61,23 +61,23 @@ export function CrashPageSidebar({ crash }: CrashPageSidebarProps) {
       },
     ],
     handler: async ({ radius = 10, maxResults = 10 }) => {
-      // TODO: Call API endpoint to find similar crashes
-      // POST /api/crashes/similar with crash context + parameters
-      const response = await fetch('/api/crashes/similar', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          crashId: crash.id,
-          radius,
-          maxResults,
-        }),
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || ''
+      const params = new URLSearchParams({
+        limit: String(maxResults),
       })
+      if (crash.stateCode) params.set('state', crash.stateCode)
 
+      const response = await fetch(`${apiUrl}/api/crashes?${params}`)
       if (!response.ok) {
-        return { error: 'Failed to find similar crashes. The API may not be available yet.' }
+        return { error: 'Failed to find similar crashes.' }
       }
 
-      return response.json()
+      const data = await response.json()
+      return {
+        crashes: data.data.filter((c: { id: string }) => c.id !== crash.id),
+        total: data.total,
+        radius,
+      }
     },
   })
 
@@ -87,17 +87,23 @@ export function CrashPageSidebar({ crash }: CrashPageSidebarProps) {
     description: 'Generate or retrieve the Crash Equalizer briefing for this crash, showing comparable crashes, liability signals, settlement context, and attorney recommendations.',
     parameters: [],
     handler: async () => {
-      // TODO: Call Equalizer API endpoint
-      const response = await fetch(`/api/equalizer/${crash.id}`, {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || ''
+
+      // Try cached first
+      const cachedRes = await fetch(`${apiUrl}/api/equalizer/${crash.id}`)
+      if (cachedRes.ok) return cachedRes.json()
+
+      // Generate fresh
+      const genRes = await fetch(`${apiUrl}/api/equalizer/${crash.id}/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
       })
 
-      if (!response.ok) {
-        return { error: 'Failed to generate Equalizer briefing. The API may not be available yet.' }
+      if (!genRes.ok) {
+        return { error: 'Failed to generate Equalizer briefing.' }
       }
 
-      return response.json()
+      return genRes.json()
     },
   })
 
