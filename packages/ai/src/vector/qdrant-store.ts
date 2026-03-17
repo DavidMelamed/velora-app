@@ -8,7 +8,18 @@
  *    QDRANT_API_KEY=your-api-key
  */
 import { QdrantClient } from '@qdrant/js-client-rest'
+import { createHash } from 'crypto'
 import { EMBEDDING_DIMS } from './embeddings'
+
+/**
+ * Convert a CUID string to a UUID v5-like format for Qdrant.
+ * Qdrant requires UUIDs or unsigned integers as point IDs.
+ */
+function cuidToUuid(cuid: string): string {
+  const hash = createHash('md5').update(cuid).digest('hex')
+  // Format as UUID: 8-4-4-4-12
+  return `${hash.slice(0, 8)}-${hash.slice(8, 12)}-${hash.slice(12, 16)}-${hash.slice(16, 20)}-${hash.slice(20, 32)}`
+}
 
 const COLLECTION_NAME = 'attorney_reviews'
 
@@ -105,7 +116,7 @@ export async function upsertReviews(points: ReviewPoint[]): Promise<void> {
     await client.upsert(COLLECTION_NAME, {
       wait: true,
       points: batch.map(p => ({
-        id: p.id,
+        id: cuidToUuid(p.id),
         vector: p.vector,
         payload: p.payload,
       })),

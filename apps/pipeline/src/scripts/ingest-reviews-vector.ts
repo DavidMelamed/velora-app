@@ -44,7 +44,7 @@ async function main() {
   }
 
   // Count total reviews with text
-  const totalReviews = await prisma.lawyerReview.count({
+  const totalReviews = await prisma.attorneyReview.count({
     where: { text: { not: null } },
   })
   console.log(`\nTotal reviews with text: ${totalReviews}`)
@@ -64,7 +64,7 @@ async function main() {
   while (processed < effectiveLimit) {
     const take = Math.min(BATCH_SIZE, effectiveLimit - processed)
 
-    const reviews = await prisma.lawyerReview.findMany({
+    const reviews = await prisma.attorneyReview.findMany({
       where: { text: { not: null } },
       select: {
         id: true,
@@ -72,7 +72,7 @@ async function main() {
         rating: true,
         authorName: true,
         publishedAt: true,
-        lawyer: {
+        attorney: {
           select: {
             id: true,
             name: true,
@@ -98,10 +98,10 @@ async function main() {
         text: r.text!,
         rating: r.rating,
         authorName: r.authorName,
-        attorneyName: r.lawyer?.name,
-        city: r.lawyer?.city,
-        stateCode: r.lawyer?.stateCode,
-        practiceArea: r.lawyer?.practiceAreas?.[0],
+        attorneyName: r.attorney?.name,
+        city: r.attorney?.city,
+        stateCode: r.attorney?.stateCode,
+        practiceArea: r.attorney?.practiceAreas?.[0],
       })
     )
 
@@ -111,35 +111,44 @@ async function main() {
       continue
     }
 
-    try {
-      // Generate embeddings
-      const vectors = await generateEmbeddingsBatch(embeddingTexts)
+    // Process in smaller embedding sub-batches (10 at a time for API reliability)
+    const EMBED_BATCH = 10
+    for (let j = 0; j < reviews.length; j += EMBED_BATCH) {
+      const subReviews = reviews.slice(j, j + EMBED_BATCH)
+      const subTexts = embeddingTexts.slice(j, j + EMBED_BATCH)
 
-      // Build Qdrant points
-      const points: ReviewPoint[] = reviews.map((r, i) => ({
-        id: r.id,
-        vector: vectors[i],
-        payload: {
-          reviewId: r.id,
-          attorneyId: r.lawyer?.id || '',
-          attorneyName: r.lawyer?.name || '',
-          text: (r.text || '').slice(0, 500), // store truncated text in payload
-          rating: r.rating,
-          city: r.lawyer?.city || undefined,
-          stateCode: r.lawyer?.stateCode || undefined,
-          practiceArea: r.lawyer?.practiceAreas?.[0] || undefined,
-          authorName: r.authorName || undefined,
-          publishedAt: r.publishedAt?.toISOString() || undefined,
-        },
-      }))
+      try {
+        // Clean texts: remove null bytes and excessive whitespace
+        const cleanTexts = subTexts.map(t => t.replace(/\0/g, '').replace(/\s+/g, ' ').trim()).filter(t => t.length > 0)
+        if (cleanTexts.length === 0) continue
 
-      // Upsert to Qdrant
-      await upsertReviews(points)
-      embedded += vectors.length
-    } catch (err) {
-      errors++
-      console.warn(`  ⚠ Batch error at offset ${processed}:`, err instanceof Error ? err.message : String(err).slice(0, 100))
-      // Continue with next batch
+        const vectors = await generateEmbeddingsBatch(cleanTexts)
+
+        const points: ReviewPoint[] = subReviews.slice(0, vectors.length).map((r, i) => ({
+          id: r.id,
+          vector: vectors[i],
+          payload: {
+            reviewId: r.id,
+            attorneyId: r.attorney?.id || '',
+            attorneyName: r.attorney?.name || '',
+            text: (r.text || '').slice(0, 500),
+            rating: r.rating,
+            city: r.attorney?.city || undefined,
+            stateCode: r.attorney?.stateCode || undefined,
+            practiceArea: r.attorney?.practiceAreas?.[0] || undefined,
+            authorName: r.authorName || undefined,
+            publishedAt: r.publishedAt?.toISOString() || undefined,
+          },
+        }))
+
+        await upsertReviews(points)
+        embedded += vectors.length
+      } catch (err) {
+        errors++
+        if (errors <= 10 || errors % 100 === 0) {
+          console.warn(`  ⚠ Sub-batch error at offset ${processed + j}:`, err instanceof Error ? err.message : String(err).slice(0, 200))
+        }
+      }
     }
 
     processed += reviews.length
