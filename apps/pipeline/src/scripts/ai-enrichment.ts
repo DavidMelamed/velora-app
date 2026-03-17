@@ -32,11 +32,28 @@ function budgetRemaining(): number {
 // Phase 1: AI Review Intelligence
 // ============================================================
 
-const BATCH_DIMENSION_PROMPT = `Analyze these attorney reviews and score each on 8 dimensions (0-100).
-Return a JSON array with one object per review, in order:
-[{ "communication": 85, "outcome": 70, "responsiveness": 80, "empathy": 75, "expertise": 90, "feeTransparency": 60, "trialExperience": 50, "satisfaction": 85 }, ...]
+const BATCH_DIMENSION_PROMPT = `You are a legal review analyst. Score each attorney review on 4 dimensions using a 0-100 scale.
 
-Dimensions: communication (clarity of attorney communication), outcome (case results satisfaction), responsiveness (response time), empathy (emotional support), expertise (legal knowledge), feeTransparency (fee clarity), trialExperience (courtroom capability), satisfaction (overall). Score 50 if not mentioned.
+CRITICAL SCORING GUIDELINES:
+- 90-100: Exceptional — reviewer explicitly describes outstanding experience with specific examples
+- 70-89: Good — reviewer indicates positive experience but without remarkable detail
+- 50-69: Average — reviewer mentions dimension but with mixed or lukewarm sentiment
+- 30-49: Below average — reviewer expresses dissatisfaction or concern
+- 0-29: Poor — reviewer describes clearly negative experience
+- 50: Default if dimension is NOT mentioned at all in the review
+- A generic 5-star review like "Great lawyer!" with no specifics should score 65-70, NOT 90+
+- Only score 90+ when the reviewer provides specific, concrete evidence of excellence
+
+Also identify the PRIMARY dimension each review is most relevant to.
+
+Return a JSON array with one object per review, in order:
+[{ "communication": 72, "outcome": 50, "responsiveness": 68, "feeTransparency": 50, "primaryDimension": "communication" }, ...]
+
+Dimensions:
+- communication: How clearly the attorney explained legal options, case status, and decisions. Look for: "explained everything", "kept me informed", "hard to reach", "never called back"
+- outcome: Satisfaction with case results. Look for: settlement amounts, "won my case", "dismissed", "got me X dollars", "lost"
+- responsiveness: Speed and consistency of attorney responses. Look for: "same day", "quick response", "took weeks to reply", "always available"
+- feeTransparency: Clarity about fees, billing, and costs. Look for: "no hidden fees", "contingency", "surprised by bill", "upfront about costs"
 
 Reviews:
 `
@@ -45,9 +62,10 @@ interface DimensionScores {
   communication: number
   outcome: number
   responsiveness: number
+  feeTransparency: number
+  // Legacy dimensions kept for DB compat but derived from core 4
   empathy: number
   expertise: number
-  feeTransparency: number
   trialExperience: number
   satisfaction: number
 }
@@ -58,8 +76,11 @@ function clamp(v: unknown): number {
 }
 
 function heuristicScores(rating: number): DimensionScores {
-  const base = rating * 20
-  return { communication: base, outcome: base, responsiveness: base, empathy: base, expertise: base, feeTransparency: base, trialExperience: base, satisfaction: base }
+  // Map 1-5 star to a reasonable range: 1★=15, 2★=30, 3★=50, 4★=65, 5★=75
+  // Note: 5-star heuristic is 75, NOT 100 — only AI-analyzed reviews with
+  // specific evidence should score 80+
+  const base = Math.round(rating <= 3 ? rating * 50 / 3 : 50 + (rating - 3) * 12.5)
+  return { communication: base, outcome: base, responsiveness: base, feeTransparency: base, empathy: base, expertise: base, trialExperience: base, satisfaction: base }
 }
 
 /**
@@ -77,7 +98,7 @@ async function extractDimensionsBatch(
   for (let i = 0; i < reviews.length; i++) {
     const r = reviews[i]
     if (r.text && r.text.trim().length >= 15) {
-      withText.push({ idx: i, text: r.text.slice(0, 300), rating: r.rating })
+      withText.push({ idx: i, text: r.text.slice(0, 500), rating: r.rating })
     } else {
       // Will be filled by heuristic
     }
@@ -101,7 +122,7 @@ async function extractDimensionsBatch(
       const { text: response } = await generateText({
         model,
         prompt,
-        maxTokens: 100 * batch.length, // ~100 tokens per review
+        maxTokens: 120 * batch.length, // ~120 tokens per review (4 dims + primaryDimension)
         temperature: 0.1,
       })
       aiCalls++
@@ -109,18 +130,28 @@ async function extractDimensionsBatch(
       // Parse array response
       const jsonMatch = response.match(/\[[\s\S]*\]/)
       if (jsonMatch) {
-        const parsed = JSON.parse(jsonMatch[0]) as Array<Record<string, number>>
+        const parsed = JSON.parse(jsonMatch[0]) as Array<Record<string, number | string>>
         for (let j = 0; j < Math.min(parsed.length, batch.length); j++) {
           const p = parsed[j]
+          const comm = clamp(p.communication)
+          const out = clamp(p.outcome)
+          const resp = clamp(p.responsiveness)
+          const fee = clamp(p.feeTransparency)
+          // Derive legacy dimensions from core 4
+          const avg = Math.round((comm + out + resp + fee) / 4)
           allScores[batch[j].idx] = {
-            communication: clamp(p.communication),
-            outcome: clamp(p.outcome),
-            responsiveness: clamp(p.responsiveness),
-            empathy: clamp(p.empathy),
-            expertise: clamp(p.expertise),
-            feeTransparency: clamp(p.feeTransparency),
-            trialExperience: clamp(p.trialExperience),
-            satisfaction: clamp(p.satisfaction),
+            communication: comm,
+            outcome: out,
+            responsiveness: resp,
+            feeTransparency: fee,
+            empathy: Math.round((comm + resp) / 2), // empathy ≈ communication + responsiveness
+            expertise: Math.round((out + fee) / 2),  // expertise ≈ outcome + fee transparency
+            trialExperience: out,                     // trial experience ≈ outcome
+            satisfaction: avg,                         // satisfaction = average of all
+          }
+          // Track primary dimension for bestQuotes
+          if (typeof p.primaryDimension === 'string') {
+            ;(allScores[batch[j].idx] as Record<string, unknown>)._primaryDimension = p.primaryDimension
           }
         }
       }
@@ -170,8 +201,8 @@ async function runReviewIntelligence() {
       reviews: {
         where: { text: { not: null } },
         select: { id: true, text: true, rating: true, publishedAt: true, authorName: true },
-        orderBy: { rating: 'desc' },
-        take: 20, // Analyze up to 20 reviews per attorney
+        orderBy: { publishedAt: 'desc' },
+        take: 30, // Analyze up to 30 most recent reviews (not top-rated, to avoid positive bias)
       },
       _count: { select: { reviews: true } },
     },
@@ -255,16 +286,24 @@ async function runReviewIntelligence() {
         else if (diff < -0.3) trend = 'DECLINING'
       }
 
-      // Best quotes
-      const bestQuotes = attorney.reviews
-        .filter(r => r.text && r.text.length > 30 && r.rating >= 4)
-        .slice(0, 3)
-        .map(r => ({
+      // Best quotes — pick diverse dimensions, not just top-rated
+      const quoteCandidates = attorney.reviews
+        .filter(r => r.text && r.text.length > 50)
+        .map((r, idx) => ({
           text: r.text!.length > 200 ? r.text!.slice(0, 200) + '...' : r.text!,
-          dimension: 'satisfaction',
-          sentiment: 'positive' as const,
+          dimension: ((allScores[idx] as Record<string, unknown>)?._primaryDimension as string) || 'communication',
+          sentiment: (r.rating >= 4 ? 'positive' : r.rating <= 2 ? 'negative' : 'neutral') as 'positive' | 'negative' | 'neutral',
           rating: r.rating,
         }))
+      // Pick top positive, top negative (if exists), and one with unique dimension
+      const bestQuotes: typeof quoteCandidates = []
+      const positive = quoteCandidates.find(q => q.sentiment === 'positive')
+      if (positive) bestQuotes.push(positive)
+      const negative = quoteCandidates.find(q => q.sentiment === 'negative')
+      if (negative) bestQuotes.push(negative)
+      const usedDims = new Set(bestQuotes.map(q => q.dimension))
+      const diverse = quoteCandidates.find(q => !usedDims.has(q.dimension))
+      if (diverse) bestQuotes.push(diverse)
 
       // Compute Attorney Index score
       const reviewCount = attorney._count.reviews
