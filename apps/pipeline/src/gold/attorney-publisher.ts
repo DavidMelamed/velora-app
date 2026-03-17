@@ -106,41 +106,39 @@ export async function publishAttorneys(
         practiceAreas,
       }
 
-      // Check if attorney already exists by placeId
-      const existing = profile.placeId
-        ? await prisma.attorney.findUnique({
-            where: { googlePlaceId: profile.placeId },
-            select: { id: true },
-          })
-        : null
-
+      // Upsert attorney by placeId (single query instead of find+create/update)
       let attorneyId: string
 
-      if (existing) {
-        await prisma.attorney.update({
-          where: { id: existing.id },
-          data: {
+      if (profile.placeId) {
+        const baseSlug = slugify(profile.title, city, stateCode ?? 'US')
+        const uniqueSlug = `${baseSlug}-${profile.placeId.slice(-6)}`
+
+        const result = await prisma.attorney.upsert({
+          where: { googlePlaceId: profile.placeId },
+          update: {
             ...profileData,
             googleCid: profile.cid ?? undefined,
           },
+          create: {
+            slug: uniqueSlug,
+            googlePlaceId: profile.placeId,
+            googleCid: profile.cid ?? undefined,
+            ...profileData,
+          },
+          select: { id: true, createdAt: true, updatedAt: true },
         })
-        attorneyId = existing.id
-        stats.updated++
+        attorneyId = result.id
+        // If createdAt and updatedAt are very close, it was just created
+        if (Math.abs(result.createdAt.getTime() - result.updatedAt.getTime()) < 1000) {
+          stats.created++
+        } else {
+          stats.updated++
+        }
       } else {
         const baseSlug = slugify(profile.title, city, stateCode ?? 'US')
-        let finalSlug = baseSlug
-        const slugExists = await prisma.attorney.findUnique({
-          where: { slug: finalSlug },
-          select: { id: true },
-        })
-        if (slugExists) {
-          finalSlug = `${baseSlug}-${profile.placeId.slice(-6)}`
-        }
-
         const created = await prisma.attorney.create({
           data: {
-            slug: finalSlug,
-            googlePlaceId: profile.placeId || undefined,
+            slug: `${baseSlug}-${Date.now().toString(36)}`,
             googleCid: profile.cid ?? undefined,
             ...profileData,
           },
@@ -149,42 +147,43 @@ export async function publishAttorneys(
         stats.created++
       }
 
-      // Upsert all reviews with extended fields
-      for (const review of reviews) {
+      // Batch insert reviews with skipDuplicates (much faster than individual upserts)
+      if (reviews.length > 0) {
+        const reviewData = reviews.map(review => ({
+          attorneyId,
+          googleReviewId: review.reviewId,
+          authorName: review.authorName,
+          authorImageUrl: review.authorImageUrl,
+          authorProfileUrl: review.authorProfileUrl,
+          rating: review.rating,
+          text: review.text,
+          reviewUrl: review.reviewUrl,
+          publishedAt: review.publishedAt,
+          timeAgo: review.timeAgo,
+          language: review.language,
+          isLocalGuide: review.isLocalGuide,
+          photosCount: review.photosCount,
+          images: (review.images as JsonValue) ?? undefined,
+          ownerResponse: review.ownerResponse,
+          ownerResponseAt: review.ownerResponseTimestamp,
+        }))
+
         try {
-          await prisma.attorneyReview.upsert({
-            where: { googleReviewId: review.reviewId },
-            update: {
-              rating: review.rating,
-              text: review.text,
-              ownerResponse: review.ownerResponse,
-              ownerResponseAt: review.ownerResponseTimestamp,
-              isLocalGuide: review.isLocalGuide,
-              photosCount: review.photosCount,
-              images: (review.images as JsonValue) ?? undefined,
-            },
-            create: {
-              attorneyId,
-              googleReviewId: review.reviewId,
-              authorName: review.authorName,
-              authorImageUrl: review.authorImageUrl,
-              authorProfileUrl: review.authorProfileUrl,
-              rating: review.rating,
-              text: review.text,
-              reviewUrl: review.reviewUrl,
-              publishedAt: review.publishedAt,
-              timeAgo: review.timeAgo,
-              language: review.language,
-              isLocalGuide: review.isLocalGuide,
-              photosCount: review.photosCount,
-              images: (review.images as JsonValue) ?? undefined,
-              ownerResponse: review.ownerResponse,
-              ownerResponseAt: review.ownerResponseTimestamp,
-            },
+          const result = await prisma.attorneyReview.createMany({
+            data: reviewData,
+            skipDuplicates: true,
           })
-          stats.reviewsAdded++
+          stats.reviewsAdded += result.count
         } catch {
-          // Skip individual review errors (duplicate constraints, etc.)
+          // Fallback: try individual inserts if batch fails
+          for (const data of reviewData) {
+            try {
+              await prisma.attorneyReview.create({ data })
+              stats.reviewsAdded++
+            } catch {
+              // Skip duplicate/constraint errors
+            }
+          }
         }
       }
     } catch (error) {

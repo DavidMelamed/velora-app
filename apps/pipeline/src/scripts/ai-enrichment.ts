@@ -32,22 +32,14 @@ function budgetRemaining(): number {
 // Phase 1: AI Review Intelligence
 // ============================================================
 
-const DIMENSION_PROMPT = `Analyze this attorney review and score each dimension 0-100.
-Return JSON only: { "communication": 85, "outcome": 70, "responsiveness": 80, "empathy": 75, "expertise": 90, "feeTransparency": 60, "trialExperience": 50, "satisfaction": 85 }
+const BATCH_DIMENSION_PROMPT = `Analyze these attorney reviews and score each on 8 dimensions (0-100).
+Return a JSON array with one object per review, in order:
+[{ "communication": 85, "outcome": 70, "responsiveness": 80, "empathy": 75, "expertise": 90, "feeTransparency": 60, "trialExperience": 50, "satisfaction": 85 }, ...]
 
-Dimension definitions:
-- communication: clarity, frequency, accessibility of attorney communication
-- outcome: satisfaction with case results
-- responsiveness: response time, availability
-- empathy: emotional support, understanding shown
-- expertise: legal knowledge, strategy quality
-- feeTransparency: clarity of fees, value perception
-- trialExperience: courtroom capability
-- satisfaction: overall client satisfaction
+Dimensions: communication (clarity of attorney communication), outcome (case results satisfaction), responsiveness (response time), empathy (emotional support), expertise (legal knowledge), feeTransparency (fee clarity), trialExperience (courtroom capability), satisfaction (overall). Score 50 if not mentioned.
 
-If a dimension is not mentioned, score it 50 (neutral).
-
-Review text: `
+Reviews:
+`
 
 interface DimensionScores {
   communication: number
@@ -65,48 +57,80 @@ function clamp(v: unknown): number {
   return Math.max(0, Math.min(100, Math.round(n)))
 }
 
-async function extractDimensions(text: string, rating: number): Promise<{ scores: DimensionScores; usedAI: boolean }> {
-  if (!text || text.trim().length < 15) {
-    const base = rating * 20
-    return {
-      scores: { communication: base, outcome: base, responsiveness: base, empathy: base, expertise: base, feeTransparency: base, trialExperience: base, satisfaction: base },
-      usedAI: false,
+function heuristicScores(rating: number): DimensionScores {
+  const base = rating * 20
+  return { communication: base, outcome: base, responsiveness: base, empathy: base, expertise: base, feeTransparency: base, trialExperience: base, satisfaction: base }
+}
+
+/**
+ * Batch-extract dimensions for multiple reviews in a single API call.
+ * Sends up to 10 reviews per call to minimize API round-trips.
+ */
+async function extractDimensionsBatch(
+  reviews: Array<{ text: string | null; rating: number }>
+): Promise<{ allScores: DimensionScores[]; aiCalls: number }> {
+  const allScores: DimensionScores[] = []
+  let aiCalls = 0
+
+  // Split reviews: those with text (AI) vs without (heuristic)
+  const withText: Array<{ idx: number; text: string; rating: number }> = []
+  for (let i = 0; i < reviews.length; i++) {
+    const r = reviews[i]
+    if (r.text && r.text.trim().length >= 15) {
+      withText.push({ idx: i, text: r.text.slice(0, 300), rating: r.rating })
+    } else {
+      // Will be filled by heuristic
     }
   }
 
-  try {
-    const model = getModel('budget')
-    const { text: response } = await generateText({
-      model,
-      prompt: DIMENSION_PROMPT + JSON.stringify(text.slice(0, 500)),
-      maxTokens: 200,
-      temperature: 0.1,
-    })
+  // Initialize all with heuristic
+  for (const r of reviews) {
+    allScores.push(heuristicScores(r.rating))
+  }
 
-    const jsonMatch = response.match(/\{[\s\S]*\}/)
-    if (!jsonMatch) throw new Error('No JSON')
+  if (withText.length === 0) return { allScores, aiCalls: 0 }
 
-    const parsed = JSON.parse(jsonMatch[0]) as Record<string, number>
-    return {
-      scores: {
-        communication: clamp(parsed.communication),
-        outcome: clamp(parsed.outcome),
-        responsiveness: clamp(parsed.responsiveness),
-        empathy: clamp(parsed.empathy),
-        expertise: clamp(parsed.expertise),
-        feeTransparency: clamp(parsed.feeTransparency),
-        trialExperience: clamp(parsed.trialExperience),
-        satisfaction: clamp(parsed.satisfaction),
-      },
-      usedAI: true,
-    }
-  } catch {
-    const base = rating * 20
-    return {
-      scores: { communication: base, outcome: base, responsiveness: base, empathy: base, expertise: base, feeTransparency: base, trialExperience: base, satisfaction: base },
-      usedAI: false,
+  // Batch AI calls in groups of 10
+  const BATCH = 10
+  for (let i = 0; i < withText.length; i += BATCH) {
+    const batch = withText.slice(i, i + BATCH)
+    const prompt = BATCH_DIMENSION_PROMPT + batch.map((r, j) => `[${j + 1}] (${r.rating}★): "${r.text}"`).join('\n')
+
+    try {
+      const model = getModel('budget')
+      const { text: response } = await generateText({
+        model,
+        prompt,
+        maxTokens: 100 * batch.length, // ~100 tokens per review
+        temperature: 0.1,
+      })
+      aiCalls++
+
+      // Parse array response
+      const jsonMatch = response.match(/\[[\s\S]*\]/)
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]) as Array<Record<string, number>>
+        for (let j = 0; j < Math.min(parsed.length, batch.length); j++) {
+          const p = parsed[j]
+          allScores[batch[j].idx] = {
+            communication: clamp(p.communication),
+            outcome: clamp(p.outcome),
+            responsiveness: clamp(p.responsiveness),
+            empathy: clamp(p.empathy),
+            expertise: clamp(p.expertise),
+            feeTransparency: clamp(p.feeTransparency),
+            trialExperience: clamp(p.trialExperience),
+            satisfaction: clamp(p.satisfaction),
+          }
+        }
+      }
+    } catch {
+      // Heuristic fallback already set
+      aiCalls++
     }
   }
+
+  return { allScores, aiCalls }
 }
 
 const WEIGHTS = {
@@ -159,10 +183,11 @@ async function runReviewIntelligence() {
   const eligible = attorneys.filter(a => a.reviews.length >= 5)
   console.log(`Found ${eligible.length} attorneys with 5+ text reviews (from top 3000)`)
 
-  const COST_PER_REVIEW = 0.0003 // Haiku extraction
+  const COST_PER_BATCH_CALL = 0.002 // Haiku batch call (~10 reviews per call)
   const totalReviews = eligible.reduce((sum, a) => sum + a.reviews.length, 0)
-  const estimatedCost = totalReviews * COST_PER_REVIEW
-  console.log(`Total reviews to analyze: ${totalReviews} | Estimated cost: $${estimatedCost.toFixed(2)}`)
+  const estimatedCalls = eligible.reduce((sum, a) => sum + Math.ceil(a.reviews.filter(r => r.text && r.text.length >= 15).length / 10), 0)
+  const estimatedCost = estimatedCalls * COST_PER_BATCH_CALL
+  console.log(`Total reviews: ${totalReviews} | Est. API calls: ${estimatedCalls} | Est. cost: $${estimatedCost.toFixed(2)}`)
 
   if (estimatedCost > budgetRemaining()) {
     const canAfford = Math.floor(budgetRemaining() / COST_PER_REVIEW)
@@ -185,18 +210,11 @@ async function runReviewIntelligence() {
     }
 
     try {
-      // Extract dimensions from each review
-      const allScores: DimensionScores[] = []
-      let reviewAICalls = 0
-
-      for (const review of attorney.reviews) {
-        const { scores, usedAI } = await extractDimensions(review.text!, review.rating)
-        allScores.push(scores)
-        if (usedAI) {
-          reviewAICalls++
-          aiCalls++
-        }
-      }
+      // Batch-extract dimensions from all reviews in 1-2 API calls
+      const { allScores, aiCalls: reviewAICalls } = await extractDimensionsBatch(
+        attorney.reviews.map(r => ({ text: r.text, rating: r.rating }))
+      )
+      aiCalls += reviewAICalls
 
       // Aggregate dimensions
       const dims: DimensionScores = {
@@ -310,8 +328,8 @@ async function runReviewIntelligence() {
       ])
 
       analyzed++
-      const cost = reviewAICalls * COST_PER_REVIEW
-      trackCost(cost, `attorney ${analyzed}/${eligible.length} (${reviewAICalls} AI calls)`)
+      const cost = reviewAICalls * COST_PER_BATCH_CALL
+      trackCost(cost, `attorney ${analyzed}/${eligible.length} (${reviewAICalls} batch calls)`)
 
       if (analyzed % 50 === 0) {
         console.log(`\n📊 Progress: ${analyzed}/${eligible.length} attorneys | AI calls: ${aiCalls} | Errors: ${errors}`)
