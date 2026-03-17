@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react'
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
+// Use relative URL to proxy through Next.js, avoiding CORS issues
+const API_BASE = ''
 
 interface QualityTrend {
   period: string

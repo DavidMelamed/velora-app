@@ -9,8 +9,8 @@ const router = Router()
 // GET /api/crashes — List crashes with pagination
 router.get('/', async (req, res) => {
   try {
-    const page = Math.max(1, parseInt(req.query.page as string) || 1)
-    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 20))
+    const page = Math.max(1, parseInt(req.query.page as string, 10) || 1)
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string, 10) || 20))
     const skip = (page - 1) * limit
 
     const [data, total] = await Promise.all([
@@ -70,26 +70,30 @@ router.post('/:id/confirm', async (req, res) => {
   try {
     const crashId = req.params.id
 
-    const crash = await prisma.crash.findUnique({
+    // Use atomic increment to avoid race conditions
+    const updated = await prisma.crash.update({
       where: { id: crashId },
+      data: {
+        confirmationCount: { increment: 1 },
+      },
       select: { id: true, confirmationCount: true },
-    })
+    }).catch(() => null)
 
-    if (!crash) {
+    if (!updated) {
       res.status(404).json({ error: 'Crash not found' })
       return
     }
 
-    const newCount = crash.confirmationCount + 1
+    const newCount = updated.confirmationCount
     const isVerified = newCount >= 3
 
-    await prisma.crash.update({
-      where: { id: crashId },
-      data: {
-        confirmationCount: newCount,
-        isVerified,
-      },
-    })
+    // Set verified flag if threshold reached
+    if (isVerified) {
+      await prisma.crash.update({
+        where: { id: crashId },
+        data: { isVerified: true },
+      })
+    }
 
     // Also record as a feedback event
     const { role, description } = (req.body || {}) as { role?: string; description?: string }
