@@ -7,7 +7,7 @@
 
 import { prisma } from '@velora/db'
 
-const BATCH_SIZE = 500
+const BATCH_SIZE = 200
 
 // Weights per spec
 const WEIGHTS = {
@@ -82,9 +82,9 @@ async function main() {
         googleReviewCount: true,
         practiceAreas: true,
         reviews: {
-          select: { rating: true, publishedAt: true, text: true, authorName: true },
+          select: { rating: true, publishedAt: true, text: true },
           orderBy: { rating: 'desc' },
-          take: 50,
+          take: 10,
         },
       },
     })
@@ -160,7 +160,7 @@ async function main() {
               satisfaction,
               trend,
               trendPeriodMonths: 12,
-              bestQuotes: bestQuotes.length > 0 ? bestQuotes : undefined,
+              bestQuotes: bestQuotes.length > 0 ? bestQuotes : [],
               reviewCount,
             },
             update: {
@@ -173,7 +173,7 @@ async function main() {
               trialExperience,
               satisfaction,
               trend,
-              bestQuotes: bestQuotes.length > 0 ? bestQuotes : undefined,
+              bestQuotes: bestQuotes.length > 0 ? bestQuotes : [],
               reviewCount,
               analyzedAt: new Date(),
             },
