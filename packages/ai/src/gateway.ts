@@ -87,11 +87,11 @@ function createOpenRouterProvider(): ProviderConfig {
       })
       switch (tier) {
         case 'premium':
-          return openrouter('anthropic/claude-opus-4-6')
+          return openrouter('anthropic/claude-opus-4.6')
         case 'standard':
-          return openrouter('anthropic/claude-sonnet-4-6')
+          return openrouter('anthropic/claude-sonnet-4.6')
         case 'budget':
-          return openrouter('anthropic/claude-haiku-4-5-20251001')
+          return openrouter('anthropic/claude-haiku-4.5')
       }
     },
   }
