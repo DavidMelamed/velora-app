@@ -53,26 +53,18 @@ export function recordProviderFailure(provider: ProviderName): void {
   }
 }
 
-function createAnthropicProvider(): ProviderConfig {
-  return {
-    name: 'anthropic',
-    envKey: 'ANTHROPIC_API_KEY',
-    isAvailable: () => !!process.env.ANTHROPIC_API_KEY && checkCircuitBreaker('anthropic'),
-    getModel: (tier: ModelTier) => {
-      // Dynamic import to avoid errors when key not set
-      const { createAnthropic } = require('@ai-sdk/anthropic') as typeof import('@ai-sdk/anthropic')
-      const anthropic = createAnthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
-      switch (tier) {
-        case 'premium':
-          return anthropic('claude-opus-4-6')
-        case 'standard':
-          return anthropic('claude-sonnet-4-6')
-        case 'budget':
-          return anthropic('claude-haiku-4-5-20251001')
-      }
-    },
-  }
-}
+// ============================================================
+// COST-OPTIMIZED MODEL ROUTING
+// ============================================================
+// Previous config routed everything through expensive Anthropic models.
+// Now uses cheap, high-quality models via OpenRouter as PRIMARY provider.
+//
+// Cost comparison (per 1M tokens input/output):
+//   OLD: Claude Sonnet $3/$15, Haiku $0.80/$4
+//   NEW: Gemini Flash $0.10/$0.40, Ministral 8B $0.15/$0.15
+//
+// Anthropic is ONLY used when explicitly requested via AI_PRIMARY_PROVIDER=anthropic
+// ============================================================
 
 function createOpenRouterProvider(): ProviderConfig {
   return {
@@ -87,11 +79,17 @@ function createOpenRouterProvider(): ProviderConfig {
       })
       switch (tier) {
         case 'premium':
-          return openrouter('anthropic/claude-opus-4.6')
+          // Google Gemini Pro — high quality, much cheaper than Opus
+          // $2/M input, $12/M output (vs Opus $15/$75)
+          return openrouter('google/gemini-2.5-pro-preview')
         case 'standard':
-          return openrouter('anthropic/claude-sonnet-4.6')
+          // Google Gemini Flash — fast, high quality, extremely cheap
+          // $0.10/M input, $0.40/M output (vs Sonnet $3/$15)
+          return openrouter('google/gemini-2.5-flash-preview')
         case 'budget':
-          return openrouter('anthropic/claude-haiku-4.5')
+          // Mistral Ministral 8B — fast classification/scoring
+          // $0.15/M input, $0.15/M output (vs Haiku $0.80/$4)
+          return openrouter('mistralai/ministral-8b-2512')
       }
     },
   }
@@ -117,17 +115,50 @@ function createGoogleProvider(): ProviderConfig {
   }
 }
 
-// Provider chain: Anthropic -> OpenRouter -> Google
-const providerChain: ProviderConfig[] = [
-  createAnthropicProvider(),
-  createOpenRouterProvider(),
-  createGoogleProvider(),
-]
+function createAnthropicProvider(): ProviderConfig {
+  return {
+    name: 'anthropic',
+    envKey: 'ANTHROPIC_API_KEY',
+    isAvailable: () => !!process.env.ANTHROPIC_API_KEY && checkCircuitBreaker('anthropic'),
+    getModel: (tier: ModelTier) => {
+      const { createAnthropic } = require('@ai-sdk/anthropic') as typeof import('@ai-sdk/anthropic')
+      const anthropic = createAnthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+      switch (tier) {
+        case 'premium':
+          return anthropic('claude-opus-4-6')
+        case 'standard':
+          return anthropic('claude-sonnet-4-6')
+        case 'budget':
+          return anthropic('claude-haiku-4-5-20251001')
+      }
+    },
+  }
+}
+
+/**
+ * Build provider chain based on AI_PRIMARY_PROVIDER env var.
+ * Default: OpenRouter (cheap) → Google → Anthropic (expensive, last resort)
+ * Set AI_PRIMARY_PROVIDER=anthropic to use Anthropic first (expensive!)
+ */
+function buildProviderChain(): ProviderConfig[] {
+  const primary = process.env.AI_PRIMARY_PROVIDER
+
+  if (primary === 'anthropic') {
+    return [createAnthropicProvider(), createOpenRouterProvider(), createGoogleProvider()]
+  }
+  if (primary === 'google') {
+    return [createGoogleProvider(), createOpenRouterProvider(), createAnthropicProvider()]
+  }
+  // Default: OpenRouter first (cheapest), Anthropic LAST
+  return [createOpenRouterProvider(), createGoogleProvider(), createAnthropicProvider()]
+}
+
+const providerChain: ProviderConfig[] = buildProviderChain()
 
 /**
  * Get a model for the given tier with automatic failover.
- * Tries providers in order: Anthropic -> OpenRouter -> Google AI
- * Skips providers with missing API keys or open circuit breakers.
+ * Default order: OpenRouter (cheap) → Google → Anthropic (expensive)
+ * Override with AI_PRIMARY_PROVIDER env var.
  */
 export function getModel(tier: ModelTier): LanguageModelV1 {
   for (const provider of providerChain) {
@@ -137,13 +168,13 @@ export function getModel(tier: ModelTier): LanguageModelV1 {
   }
 
   throw new Error(
-    'No AI provider available. Set at least one of: ANTHROPIC_API_KEY, OPENROUTER_API_KEY, GOOGLE_GENERATIVE_AI_API_KEY'
+    'No AI provider available. Set at least one of: OPENROUTER_API_KEY, GOOGLE_GENERATIVE_AI_API_KEY, ANTHROPIC_API_KEY'
   )
 }
 
 /**
  * Get the appropriate model tier for a crash based on severity.
- * FATAL -> premium (Opus), SERIOUS_INJURY -> standard (Sonnet), other -> budget (Haiku)
+ * FATAL -> premium, SERIOUS_INJURY -> standard, other -> budget
  */
 export function getModelTierForCrash(severity: string): ModelTier {
   switch (severity) {

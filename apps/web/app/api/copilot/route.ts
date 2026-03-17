@@ -1,13 +1,17 @@
 import {
   CopilotRuntime,
-  AnthropicAdapter,
+  OpenAIAdapter,
   copilotRuntimeNextJSAppRouterEndpoint,
 } from '@copilotkit/runtime'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
 
-const serviceAdapter = new AnthropicAdapter({
-  model: process.env.COPILOT_MODEL || 'claude-sonnet-4-20250514',
+// Use OpenRouter with cheap Gemini Flash instead of expensive Anthropic Sonnet
+// Cost: ~$0.10/M input vs $3/M input (30x cheaper)
+const serviceAdapter = new OpenAIAdapter({
+  model: process.env.COPILOT_MODEL || 'google/gemini-2.5-flash-preview',
+  openaiApiKey: process.env.OPENROUTER_API_KEY,
+  openaiBaseUrl: 'https://openrouter.ai/api/v1',
 })
 
 const runtime = new CopilotRuntime({
