@@ -50,6 +50,7 @@ export const CrashSilverSchema = z.object({
   stateCode: z.string().length(2),
   dataSource: z.string(),
   cityName: z.string().optional(),
+  streetAddress: z.string().optional(),
 })
 
 export const VehicleSilverSchema = z.object({

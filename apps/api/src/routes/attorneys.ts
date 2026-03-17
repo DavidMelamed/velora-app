@@ -1,9 +1,5 @@
 import { Router } from 'express'
 import { prisma } from '@velora/db'
-import { analyzeReviews } from '../services/review-intelligence'
-import { computeAttorneyIndex } from '../services/attorney-index'
-import { fetchAttorneyReviews } from '../services/google-places'
-import type { AttorneyReview } from '../services/review-intelligence'
 
 const router = Router()
 
@@ -40,10 +36,12 @@ router.get('/', async (req, res) => {
         take: limitNum,
         orderBy:
           sort === 'score'
-            ? { attorneyIndex: { score: 'desc' } }
-            : sort === 'name'
-              ? { name: 'asc' }
-              : { createdAt: 'desc' },
+            ? [{ attorneyIndex: { score: 'desc' } }, { googleRating: 'desc' }]
+            : sort === 'reviews'
+              ? { googleReviewCount: 'desc' }
+              : sort === 'name'
+                ? { name: 'asc' }
+                : { googleRating: 'desc' },
       }),
       prisma.attorney.count({ where }),
     ])
@@ -57,6 +55,10 @@ router.get('/', async (req, res) => {
       stateCode: attorney.stateCode,
       practiceAreas: attorney.practiceAreas,
       yearsExperience: attorney.yearsExperience,
+      website: attorney.website,
+      phone: attorney.phone,
+      googleRating: attorney.googleRating,
+      googleReviewCount: attorney.googleReviewCount,
       indexScore: attorney.attorneyIndex?.score ?? null,
       dataQuality: attorney.attorneyIndex?.dataQuality ?? null,
       reviewCount: attorney._count.reviews,
@@ -110,96 +112,9 @@ router.get('/:slug', async (req, res) => {
       return
     }
 
-    // If no review intelligence exists yet, compute it on-the-fly
-    let intelligence = attorney.reviewIntelligence
-    let indexScore = attorney.attorneyIndex
-
-    if (!intelligence && attorney.reviews.length > 0) {
-      const reviewData: AttorneyReview[] = attorney.reviews.map((r) => ({
-        id: r.id,
-        text: r.text,
-        rating: r.rating,
-        publishedAt: r.createdAt,
-        authorName: r.authorName,
-      }))
-
-      const analyzed = await analyzeReviews(reviewData)
-      const computed = computeAttorneyIndex(analyzed, attorney.practiceAreas)
-
-      // Persist the computed intelligence
-      try {
-        intelligence = await prisma.reviewIntelligence.upsert({
-          where: { attorneyId: attorney.id },
-          create: {
-            attorneyId: attorney.id,
-            ...analyzed.dimensions,
-            trend: analyzed.trend,
-            trendPeriodMonths: 12,
-            bestQuotes: JSON.parse(JSON.stringify(analyzed.bestQuotes)),
-            reviewCount: analyzed.reviewCount,
-          },
-          update: {
-            ...analyzed.dimensions,
-            trend: analyzed.trend,
-            bestQuotes: JSON.parse(JSON.stringify(analyzed.bestQuotes)),
-            reviewCount: analyzed.reviewCount,
-            analyzedAt: new Date(),
-          },
-        })
-
-        indexScore = await prisma.attorneyIndex.upsert({
-          where: { attorneyId: attorney.id },
-          create: {
-            attorneyId: attorney.id,
-            score: computed.score,
-            communicationScore: computed.components.communication,
-            responsivenessScore: computed.components.responsiveness,
-            outcomeScore: computed.components.outcome,
-            reviewCountScore: computed.components.reviewCount,
-            specialtyScore: computed.components.specialty,
-            reviewCount: analyzed.reviewCount,
-            dataQuality: computed.dataQuality,
-          },
-          update: {
-            score: computed.score,
-            communicationScore: computed.components.communication,
-            responsivenessScore: computed.components.responsiveness,
-            outcomeScore: computed.components.outcome,
-            reviewCountScore: computed.components.reviewCount,
-            specialtyScore: computed.components.specialty,
-            reviewCount: analyzed.reviewCount,
-            dataQuality: computed.dataQuality,
-            computedAt: new Date(),
-          },
-        })
-      } catch (persistError) {
-        console.warn('[Attorneys] Failed to persist intelligence:', persistError)
-      }
-    }
-
-    // If attorney has a Google Place ID but no reviews, try fetching
-    if (attorney.googlePlaceId && attorney.reviews.length === 0) {
-      const googleReviews = await fetchAttorneyReviews(attorney.googlePlaceId)
-      if (googleReviews.length > 0) {
-        // Store reviews and recompute
-        try {
-          for (const review of googleReviews) {
-            await prisma.attorneyReview.create({
-              data: {
-                attorneyId: attorney.id,
-                googleReviewId: review.id,
-                authorName: review.authorName,
-                rating: review.rating,
-                text: review.text,
-                publishedAt: review.publishedAt,
-              },
-            })
-          }
-        } catch {
-          // Duplicates or other issues — non-fatal
-        }
-      }
-    }
+    // Use pre-computed intelligence (from batch script) — no on-the-fly AI calls
+    const intelligence = attorney.reviewIntelligence
+    const indexScore = attorney.attorneyIndex
 
     res.json({
       data: {
@@ -216,6 +131,14 @@ router.get('/:slug', async (req, res) => {
         zipCode: attorney.zipCode,
         latitude: attorney.latitude,
         longitude: attorney.longitude,
+        googleRating: attorney.googleRating,
+        googleReviewCount: attorney.googleReviewCount,
+        description: attorney.description,
+        category: attorney.category,
+        logoUrl: attorney.logoUrl,
+        mainImageUrl: attorney.mainImageUrl,
+        isClaimed: attorney.isClaimed,
+        googleMapsUrl: attorney.googleMapsUrl,
         practiceAreas: attorney.practiceAreas,
         yearsExperience: attorney.yearsExperience,
         barNumber: attorney.barNumber,

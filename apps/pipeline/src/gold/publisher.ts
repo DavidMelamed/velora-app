@@ -61,6 +61,7 @@ export async function publishToGold(records: PublishableRecord[]): Promise<Publi
             lightCondition: crash.lightCondition,
             crashSeverity: crash.crashSeverity,
             stateCode: crash.stateCode,
+            streetAddress: crash.streetAddress,
             dataSource: crash.dataSource,
             rawData: (rawData as JsonValue) ?? undefined,
           },
@@ -82,6 +83,7 @@ export async function publishToGold(records: PublishableRecord[]): Promise<Publi
             lightCondition: crash.lightCondition,
             crashSeverity: crash.crashSeverity,
             stateCode: crash.stateCode,
+            streetAddress: crash.streetAddress,
             dataSource: crash.dataSource,
             rawData: (rawData as JsonValue) ?? undefined,
             // Create vehicles

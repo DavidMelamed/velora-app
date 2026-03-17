@@ -65,6 +65,22 @@ function mapLight(val: unknown): CrashSilver['lightCondition'] {
   return 'OTHER'
 }
 
+/** Map collision/crash type to MMUCC manner of collision */
+function mapMannerOfCollision(val: unknown): CrashSilver['mannerOfCollision'] {
+  if (val === null || val === undefined) return undefined
+  const s = String(val).toUpperCase()
+  if (s.includes('REAR') && (s.includes('END') || s.includes('FRONT'))) return 'FRONT_TO_REAR'
+  if (s.includes('HEAD') && s.includes('ON')) return 'FRONT_TO_FRONT'
+  if (s.includes('ANGLE') || s.includes('TURNING') || s.includes('RIGHT TURN') || s.includes('LEFT TURN')) return 'ANGLE'
+  if (s.includes('SIDESWIPE') && s.includes('SAME')) return 'SIDESWIPE_SAME_DIRECTION'
+  if (s.includes('SIDESWIPE') && s.includes('OPPOSITE')) return 'SIDESWIPE_OPPOSITE_DIRECTION'
+  if (s.includes('REAR') && s.includes('SIDE')) return 'REAR_TO_SIDE'
+  if (s.includes('REAR') && s.includes('REAR')) return 'REAR_TO_REAR'
+  if (s.includes('FIXED OBJECT') || s.includes('PARKED') || s.includes('PEDALCYCLIST') || s.includes('PEDESTRIAN')) return 'NOT_COLLISION_WITH_MV'
+  if (s.includes('STRAIGHT') || s.includes('SINGLE')) return 'NOT_COLLISION_WITH_MV'
+  return 'OTHER'
+}
+
 /** Map vehicle type string to MMUCC body type */
 function mapVehicleType(val: string): VehicleSilver['bodyType'] {
   const s = val.toUpperCase()
@@ -111,6 +127,7 @@ function parseNYCRecord(bronze: BronzeRecord): SocrataParsedResult | null {
     cityName: 'New York',
     latitude: asNum(raw.latitude),
     longitude: asNum(raw.longitude),
+    mannerOfCollision: mapMannerOfCollision(raw.contributing_factor_vehicle_1),
     crashSeverity: severity,
     stateCode: 'NY',
     dataSource: 'socrata-nyc',
@@ -157,11 +174,20 @@ function parseChicagoRecord(bronze: BronzeRecord): SocrataParsedResult | null {
     cityName: 'Chicago',
     latitude: asNum(raw.latitude),
     longitude: asNum(raw.longitude),
+    mannerOfCollision: mapMannerOfCollision(raw.first_crash_type) ?? mapMannerOfCollision(raw.crash_type),
     crashSeverity: mapSeverity(raw.most_severe_injury) ?? (killed > 0 ? 'FATAL' : injured > 0 ? 'SUSPECTED_MINOR_INJURY' : 'PROPERTY_DAMAGE_ONLY'),
     atmosphericCondition: mapWeather(raw.weather_condition),
     lightCondition: mapLight(raw.lighting_condition),
     stateCode: 'IL',
     dataSource: 'socrata-chicago',
+  }
+
+  // Chicago has street info
+  const streetNo = asStr(raw.street_no)
+  const streetDir = asStr(raw.street_direction)
+  const streetName = asStr(raw.street_name)
+  if (streetName) {
+    (crash as Record<string, unknown>).streetAddress = [streetNo, streetDir, streetName].filter(Boolean).join(' ')
   }
 
   return { crash, vehicles: [], persons: [] }
@@ -201,6 +227,8 @@ function parseDenverRecord(bronze: BronzeRecord): SocrataParsedResult | null {
     cityName: 'Denver',
     latitude: asNum(raw.geo_lat),
     longitude: asNum(raw.geo_lon),
+    mannerOfCollision: mapMannerOfCollision(raw.top_traff ?? raw.top_traffic_accident_offense),
+    streetAddress: asStr(raw.incident_a) ?? asStr(raw.incident_address),
     crashSeverity: killed > 0 ? 'FATAL' : seriousInjury > 0 ? 'SUSPECTED_SERIOUS_INJURY' : 'PROPERTY_DAMAGE_ONLY',
     stateCode: 'CO',
     dataSource: 'socrata-denver',
@@ -315,6 +343,56 @@ function parseSanFranciscoRecord(bronze: BronzeRecord): SocrataParsedResult | nu
 }
 
 /**
+ * Parse Austin/Texas CRIS Crashes (dataset y2wy-tgr5).
+ * Fields: crash_timestamp, collsn_desc, address_display, death_cnt, tot_injry_cnt,
+ *         cris_crash_id, crash_sev_id, latitude, longitude, rpt_street_name
+ */
+function parseAustinRecord(bronze: BronzeRecord): SocrataParsedResult | null {
+  const raw = bronze.rawData
+
+  const dateStr = asStr(raw.crash_timestamp) ?? asStr(raw.crash_timestamp_ct)
+  if (!dateStr) return null
+
+  const parsedDate = new Date(dateStr)
+  if (isNaN(parsedDate.getTime())) return null
+
+  const crashId = asStr(raw.cris_crash_id) ?? asStr(raw.case_id) ?? `atx-${parsedDate.getTime()}-${Math.random().toString(36).slice(2, 8)}`
+  const killed = asNum(raw.death_cnt) ?? 0
+  const injured = asNum(raw.tot_injry_cnt) ?? 0
+  const seriousInjury = asNum(raw.sus_serious_injry_cnt) ?? 0
+
+  // crash_sev_id: 0=Unknown, 1=Suspected minor, 2=Possible injury, 3=Suspected serious, 4=Fatal, 5=Non-injury
+  const sevId = asNum(raw.crash_sev_id)
+  let severity: CrashSilver['crashSeverity'] = 'PROPERTY_DAMAGE_ONLY'
+  if (sevId === 4 || killed > 0) severity = 'FATAL'
+  else if (sevId === 3 || seriousInjury > 0) severity = 'SUSPECTED_SERIOUS_INJURY'
+  else if (sevId === 1 || (injured > 0 && seriousInjury === 0)) severity = 'SUSPECTED_MINOR_INJURY'
+  else if (sevId === 2) severity = 'POSSIBLE_INJURY'
+  else if (sevId === 5 || sevId === 0) severity = 'PROPERTY_DAMAGE_ONLY'
+
+  // Extract lat/lng from point geometry or direct fields
+  const pointCoords = (raw.point as { coordinates?: number[] })?.coordinates
+  const lat = asNum(raw.latitude) ?? asNum(pointCoords?.[1])
+  const lon = asNum(raw.longitude) ?? asNum(pointCoords?.[0])
+
+  const crash: Partial<CrashSilver> = {
+    stateUniqueId: `ATX-${crashId}`,
+    crashDate: parsedDate,
+    county: 'TRAVIS',
+    cityName: 'Austin',
+    latitude: lat,
+    longitude: lon,
+    mannerOfCollision: mapMannerOfCollision(raw.collsn_desc),
+    streetAddress: asStr(raw.address_display) ?? asStr(raw.rpt_street_name),
+    crashSeverity: severity,
+    stateCode: 'TX',
+    dataSource: 'socrata-austin',
+  }
+
+  return { crash, vehicles: [], persons: [] }
+}
+
+/**
  * Generic fallback parser for unknown Socrata datasets.
  * Tries common field names to extract crash data.
  */
@@ -368,6 +446,8 @@ export function parseSocrataRecord(bronze: BronzeRecord): SocrataParsedResult | 
       return parseLosAngelesRecord(bronze)
     case 'socrata-san-francisco':
       return parseSanFranciscoRecord(bronze)
+    case 'socrata-austin':
+      return parseAustinRecord(bronze)
     default:
       // Try generic parser as fallback
       return parseGenericSocrataRecord(bronze)

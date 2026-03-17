@@ -36,6 +36,35 @@ app.use('/api/admin/learning', authLimiter, learningMetricsRoutes)
 // Error handler (must be last)
 app.use(errorHandler)
 
-app.listen(PORT, () => console.log(`Velora API listening on port ${PORT}`))
+app.listen(PORT, () => {
+  console.log(`Velora API listening on port ${PORT}`)
+
+  // Start heartbeat loop (30-minute interval)
+  import('./services/heartbeat/runner').then(({ runHeartbeat }) => {
+    const HEARTBEAT_INTERVAL_MS = 30 * 60 * 1000
+
+    // Run first heartbeat after 10 seconds (let services warm up)
+    setTimeout(async () => {
+      try {
+        const result = await runHeartbeat()
+        console.log(`[Heartbeat] Passed: ${result.passed}/${result.totalChecks} (${result.durationMs}ms)`)
+      } catch (err) {
+        console.warn('[Heartbeat] Initial run failed:', err instanceof Error ? err.message : err)
+      }
+    }, 10_000)
+
+    // Then every 30 minutes
+    setInterval(async () => {
+      try {
+        const result = await runHeartbeat()
+        console.log(`[Heartbeat] Passed: ${result.passed}/${result.totalChecks} (${result.durationMs}ms)`)
+      } catch (err) {
+        console.warn('[Heartbeat] Run failed:', err instanceof Error ? err.message : err)
+      }
+    }, HEARTBEAT_INTERVAL_MS)
+  }).catch(err => {
+    console.warn('[Heartbeat] Failed to load:', err instanceof Error ? err.message : err)
+  })
+})
 
 export { app }
