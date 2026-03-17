@@ -23,6 +23,14 @@ router.get('/', async (req, res) => {
     if (city && typeof city === 'string') {
       where.city = { contains: city, mode: 'insensitive' }
     }
+    // When sorting by score, only show attorneys that have been scored
+    if (sort === 'score') {
+      where.attorneyIndex = { isNot: null }
+    }
+    // When sorting by rating, only show attorneys with a rating
+    if (sort === 'rating') {
+      where.googleRating = { not: null }
+    }
 
     const [attorneys, total] = await Promise.all([
       prisma.attorney.findMany({
