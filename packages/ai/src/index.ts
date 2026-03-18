@@ -8,6 +8,9 @@ export {
   getIntersectionStatsTool,
   findAttorneysTool,
   getTrendsTool,
+  searchReviewsTool,
+  getAttorneyProfileTool,
+  findNearbyAttorneysTool,
   searchCrashes,
   searchCrashesParameters,
   getIntersectionStats,
@@ -72,3 +75,21 @@ export type { ModelUsageEntry, DailyBudgetConfig, BudgetStatus } from './routing
 
 // Adaptive Model Router
 export { getAdaptiveModelTier, clearRoutingCache, getCachedDecisions } from './routing/adaptive-router'
+
+// Vector Store
+export {
+  generateEmbedding,
+  generateEmbeddingsBatch,
+  buildReviewEmbeddingText,
+  EMBEDDING_MODEL,
+  EMBEDDING_DIMS,
+  initCollection,
+  upsertReviews,
+  searchSimilar,
+  hybridSearch,
+  ensurePayloadIndexes,
+  getCollectionInfo,
+  COLLECTION_NAME,
+  rerankAndEnrich,
+} from './vector'
+export type { ReviewPoint, VectorHit, RankedAttorneyResult } from './vector'

@@ -1,18 +1,24 @@
 import { Router } from 'express'
-import { generateEmbedding, searchSimilar, getCollectionInfo } from '@velora/ai'
+import {
+  generateEmbedding,
+  hybridSearch,
+  rerankAndEnrich,
+  getCollectionInfo,
+} from '@velora/ai'
 
 const router = Router()
 
-// POST /api/vector-search — Semantic search over attorney reviews
+// POST /api/vector-search — Hybrid semantic search with re-ranking
 router.post('/', async (req, res) => {
   try {
-    const { query, limit, stateCode, city, attorneyId, minRating } = req.body as {
+    const { query, limit, stateCode, city, attorneyId, minRating, practiceArea } = req.body as {
       query: string
       limit?: number
       stateCode?: string
       city?: string
       attorneyId?: string
       minRating?: number
+      practiceArea?: string
     }
 
     if (!query || typeof query !== 'string') {
@@ -20,32 +26,37 @@ router.post('/', async (req, res) => {
       return
     }
 
+    const maxResults = Math.min(limit || 10, 20)
+
+    // 1. Generate embedding for the query
     const queryVector = await generateEmbedding(query)
 
-    const results = await searchSimilar(queryVector, {
-      limit: Math.min(limit || 10, 50),
-      minScore: 0.3,
-      filter: {
-        stateCode,
+    // 2. Hybrid search: vector similarity + metadata filters
+    const vectorHits = await hybridSearch({
+      queryVector,
+      filters: {
+        stateCode: stateCode?.toUpperCase(),
         city,
         attorneyId,
         minRating,
+        practiceArea,
       },
+      limit: maxResults * 5, // over-fetch for re-ranking diversity
+      minScore: 0.3,
     })
+
+    // 3. Re-rank with attorney profile enrichment
+    const ranked = await rerankAndEnrich(vectorHits, { maxAttorneys: maxResults })
 
     res.json({
       query,
-      results: results.map((r: { score: number; payload: { reviewId: string; attorneyId: string; attorneyName: string; text: string; rating: number; city?: string; stateCode?: string } }) => ({
-        score: r.score,
-        reviewId: r.payload.reviewId,
-        attorneyId: r.payload.attorneyId,
-        attorneyName: r.payload.attorneyName,
-        text: r.payload.text,
-        rating: r.payload.rating,
-        city: r.payload.city,
-        stateCode: r.payload.stateCode,
+      attorneys: ranked.map(r => ({
+        ...r.attorney,
+        compositeScore: r.compositeScore,
+        scoreBreakdown: r.scoreBreakdown,
+        matchedReviews: r.relevantReviews,
       })),
-      total: results.length,
+      total: ranked.length,
     })
   } catch (error) {
     console.error('[Vector Search] Error:', error)

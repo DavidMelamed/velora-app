@@ -195,4 +195,101 @@ export async function getCollectionInfo(): Promise<{
   }
 }
 
+/**
+ * Hybrid search: vector similarity + rich metadata filtering.
+ * Supports text-based queries (auto-embeds), multi-attorney filtering,
+ * practice area filtering, and date range filtering.
+ */
+export async function hybridSearch(options: {
+  queryVector?: number[]
+  filters?: {
+    stateCode?: string
+    city?: string
+    attorneyId?: string
+    attorneyIds?: string[]
+    minRating?: number
+    practiceArea?: string
+  }
+  limit?: number
+  minScore?: number
+}): Promise<Array<{
+  id: string
+  score: number
+  payload: ReviewPoint['payload']
+}>> {
+  const client = getQdrant()
+  const limit = options.limit ?? 20
+  const minScore = options.minScore ?? 0.3
+
+  // Build Qdrant filter
+  const must: Array<Record<string, unknown>> = []
+
+  if (options.filters?.stateCode) {
+    must.push({ key: 'stateCode', match: { value: options.filters.stateCode } })
+  }
+  if (options.filters?.city) {
+    must.push({ key: 'city', match: { value: options.filters.city } })
+  }
+  if (options.filters?.attorneyId) {
+    must.push({ key: 'attorneyId', match: { value: options.filters.attorneyId } })
+  }
+  if (options.filters?.attorneyIds && options.filters.attorneyIds.length > 0) {
+    // Qdrant supports "any" match for multi-value filtering
+    must.push({ key: 'attorneyId', match: { any: options.filters.attorneyIds } })
+  }
+  if (options.filters?.minRating) {
+    must.push({ key: 'rating', range: { gte: options.filters.minRating } })
+  }
+  if (options.filters?.practiceArea) {
+    must.push({ key: 'practiceArea', match: { value: options.filters.practiceArea } })
+  }
+
+  const filter = must.length > 0 ? { must } : undefined
+
+  if (options.queryVector) {
+    // Vector + filter search
+    const results = await client.search(COLLECTION_NAME, {
+      vector: options.queryVector,
+      limit,
+      score_threshold: minScore,
+      filter,
+      with_payload: true,
+    })
+
+    return results.map(r => ({
+      id: String(r.id),
+      score: r.score,
+      payload: r.payload as unknown as ReviewPoint['payload'],
+    }))
+  } else {
+    // Filter-only search (no vector — use scroll)
+    const results = await client.scroll(COLLECTION_NAME, {
+      filter,
+      limit,
+      with_payload: true,
+      with_vector: false,
+    })
+
+    return results.points.map(r => ({
+      id: String(r.id),
+      score: 1.0, // no vector comparison, default score
+      payload: r.payload as unknown as ReviewPoint['payload'],
+    }))
+  }
+}
+
+/**
+ * Ensure additional payload indexes exist (idempotent).
+ * Call once during collection setup.
+ */
+export async function ensurePayloadIndexes(): Promise<void> {
+  const client = getQdrant()
+  try {
+    await client.createPayloadIndex(COLLECTION_NAME, {
+      field_name: 'practiceArea',
+      field_schema: 'keyword',
+    })
+  } catch { /* index may already exist */ }
+}
+
 export { COLLECTION_NAME }

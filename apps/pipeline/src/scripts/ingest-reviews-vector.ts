@@ -23,10 +23,33 @@ import {
 import type { ReviewPoint } from '@velora/ai'
 
 // CLI args
-const BATCH_SIZE = parseInt(process.argv.find(a => a.startsWith('--batch-size='))?.split('=')[1] || '50', 10)
+const BATCH_SIZE = parseInt(process.argv.find(a => a.startsWith('--batch-size='))?.split('=')[1] || '100', 10)
 const LIMIT = parseInt(process.argv.find(a => a.startsWith('--limit='))?.split('=')[1] || '0', 10) || Infinity
 const DRY_RUN = process.argv.includes('--dry-run')
 const SKIP = parseInt(process.argv.find(a => a.startsWith('--skip='))?.split('=')[1] || '0', 10)
+const MAX_RETRIES = 5
+
+async function withRetry<T>(fn: () => Promise<T>, label: string): Promise<T> {
+  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    try {
+      return await fn()
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err).slice(0, 200)
+      if (attempt === MAX_RETRIES - 1) throw err
+      // Reconnect Prisma on connection errors (P1001, P1017)
+      const code = (err as { code?: string })?.code
+      if (code === 'P1001' || code === 'P1017' || msg.includes('closed the connection')) {
+        console.warn(`  ⚠ ${label} DB connection lost — reconnecting...`)
+        try { await prisma.$disconnect() } catch {}
+        await prisma.$connect()
+      }
+      const delay = Math.min(1000 * Math.pow(2, attempt) + Math.random() * 500, 30000)
+      console.warn(`  ⚠ ${label} attempt ${attempt + 1} failed: ${msg} — retrying in ${(delay / 1000).toFixed(1)}s`)
+      await new Promise(r => setTimeout(r, delay))
+    }
+  }
+  throw new Error('unreachable')
+}
 
 async function main() {
   console.log('╔══════════════════════════════════════════════════════════╗')
@@ -64,7 +87,7 @@ async function main() {
   while (processed < effectiveLimit) {
     const take = Math.min(BATCH_SIZE, effectiveLimit - processed)
 
-    const reviews = await prisma.attorneyReview.findMany({
+    const reviews = await withRetry(() => prisma.attorneyReview.findMany({
       where: { text: { not: null } },
       select: {
         id: true,
@@ -86,7 +109,7 @@ async function main() {
       take,
       skip: cursor ? 1 : SKIP + processed,
       cursor: cursor ? { id: cursor } : undefined,
-    })
+    }), `db-fetch@${processed}`)
 
     if (reviews.length === 0) break
 
@@ -111,8 +134,8 @@ async function main() {
       continue
     }
 
-    // Process in smaller embedding sub-batches (10 at a time for API reliability)
-    const EMBED_BATCH = 10
+    // Process in embedding sub-batches
+    const EMBED_BATCH = 25
     for (let j = 0; j < reviews.length; j += EMBED_BATCH) {
       const subReviews = reviews.slice(j, j + EMBED_BATCH)
       const subTexts = embeddingTexts.slice(j, j + EMBED_BATCH)
@@ -122,7 +145,7 @@ async function main() {
         const cleanTexts = subTexts.map(t => t.replace(/\0/g, '').replace(/\s+/g, ' ').trim()).filter(t => t.length > 0)
         if (cleanTexts.length === 0) continue
 
-        const vectors = await generateEmbeddingsBatch(cleanTexts)
+        const vectors = await withRetry(() => generateEmbeddingsBatch(cleanTexts), `embed@${processed + j}`)
 
         const points: ReviewPoint[] = subReviews.slice(0, vectors.length).map((r, i) => ({
           id: r.id,
@@ -141,7 +164,7 @@ async function main() {
           },
         }))
 
-        await upsertReviews(points)
+        await withRetry(() => upsertReviews(points), `upsert@${processed + j}`)
         embedded += vectors.length
       } catch (err) {
         errors++
@@ -154,7 +177,7 @@ async function main() {
     processed += reviews.length
 
     // Progress logging
-    if (processed % 500 === 0 || processed >= effectiveLimit) {
+    if (processed % 100 === 0 || processed >= effectiveLimit) {
       const elapsed = (Date.now() - startTime) / 1000
       const rate = processed / elapsed
       const eta = (effectiveLimit - processed) / rate

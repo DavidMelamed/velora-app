@@ -111,6 +111,54 @@ const runtime = new CopilotRuntime({
         }
       },
     },
+    {
+      name: 'searchAttorneyReviews',
+      description:
+        'Semantic search over attorney reviews. Find reviews mentioning specific qualities like communication, outcomes, fees, trial experience. Returns attorneys ranked by composite score with matched review snippets.',
+      parameters: [
+        { name: 'query', type: 'string', description: 'What to search for (e.g., "good communication", "won my case")', required: true },
+        { name: 'stateCode', type: 'string', description: '2-letter state code', required: false },
+        { name: 'city', type: 'string', description: 'City name', required: false },
+        { name: 'limit', type: 'number', description: 'Max results', required: false },
+      ],
+      handler: async ({ query, stateCode, city, limit }: { query: string; stateCode?: string; city?: string; limit?: number }) => {
+        try {
+          const res = await fetch(`${API_URL}/api/vector-search`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query, stateCode, city, limit: limit || 5 }),
+          })
+          if (!res.ok) return { error: 'Search failed', attorneys: [] }
+          return await res.json()
+        } catch (error) {
+          return { error: error instanceof Error ? error.message : 'Failed to search reviews', attorneys: [] }
+        }
+      },
+    },
+    {
+      name: 'findNearbyAttorneys',
+      description:
+        'Find attorneys near a geographic location. Useful after viewing a crash to find nearby lawyers.',
+      parameters: [
+        { name: 'latitude', type: 'number', description: 'Center latitude', required: true },
+        { name: 'longitude', type: 'number', description: 'Center longitude', required: true },
+        { name: 'radiusMiles', type: 'number', description: 'Search radius in miles', required: false },
+      ],
+      handler: async ({ latitude, longitude, radiusMiles }: { latitude: number; longitude: number; radiusMiles?: number }) => {
+        try {
+          const params = new URLSearchParams({
+            lat: String(latitude),
+            lng: String(longitude),
+            radius: String(radiusMiles || 25),
+          })
+          const res = await fetch(`${API_URL}/api/attorneys/nearby?${params}`)
+          if (!res.ok) return { error: 'Search failed', attorneys: [] }
+          return await res.json()
+        } catch (error) {
+          return { error: error instanceof Error ? error.message : 'Failed to find nearby attorneys', attorneys: [] }
+        }
+      },
+    },
   ],
 })
 

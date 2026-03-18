@@ -6,6 +6,9 @@ import {
   getIntersectionStatsTool,
   findAttorneysTool,
   getTrendsTool,
+  searchReviewsTool,
+  getAttorneyProfileTool,
+  findNearbyAttorneysTool,
   detectPersona,
   getPersonaConfig,
 } from '@velora/ai'
@@ -27,13 +30,22 @@ Key behaviors:
 Available capabilities:
 - searchCrashes: Search crash records by state, city, severity, type, and date range
 - getIntersectionStats: Analyze crash patterns near a geographic location
-- findAttorneys: Find top-rated personal injury attorneys by location
-- getTrends: Analyze crash trends over time by various periods`
+- findAttorneys: Find top-rated personal injury attorneys by location (structured SQL search)
+- getTrends: Analyze crash trends over time by various periods
+- searchReviews: **SEMANTIC SEARCH** over 800K+ attorney reviews — use this when users ask about specific qualities (communication, outcomes, fees, trial experience). Returns attorneys ranked by composite score with matched review snippets
+- getAttorneyProfile: Get full attorney detail including review intelligence dimensions, best quotes, trend, and recent reviews. Use after searchReviews or findAttorneys to drill into a specific attorney
+- findNearbyAttorneys: Find attorneys near a crash location with distance + quality blended scoring. Use after getting crash lat/lng from searchCrashes
+
+Multi-step search strategies:
+- "Find best lawyer near this crash": searchCrashes → get lat/lng → findNearbyAttorneys → getAttorneyProfile for top match
+- "Lawyer with good communication": searchReviews with communication-focused query → getAttorneyProfile for top matches
+- "Compare attorneys": getAttorneyProfile for each, present dimension scores side by side
+- "Attorney reviews about outcomes": searchReviews with outcome-focused query, returns matched review snippets with context`
 
 // POST /api/search — AI-powered crash search (streaming)
 router.post('/', async (req, res) => {
   try {
-    const { messages } = req.body as { messages: Array<{ role: string; content: string }> }
+    const { messages } = req.body as { messages: Array<{ role: 'user' | 'assistant' | 'system'; content: string }> }
 
     if (!messages || !Array.isArray(messages)) {
       res.status(400).json({ error: 'messages array is required' })
@@ -62,6 +74,9 @@ Tone: ${personaConfig.tone}`
         getIntersectionStats: getIntersectionStatsTool,
         findAttorneys: findAttorneysTool,
         getTrends: getTrendsTool,
+        searchReviews: searchReviewsTool,
+        getAttorneyProfile: getAttorneyProfileTool,
+        findNearbyAttorneys: findNearbyAttorneysTool,
       },
       maxSteps: 8,
     })
