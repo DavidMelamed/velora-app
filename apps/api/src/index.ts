@@ -12,6 +12,8 @@ import feedbackRoutes from './routes/feedback'
 import pipelineRoutes from './routes/pipeline'
 import learningMetricsRoutes from './routes/admin/learning-metrics'
 import vectorSearchRoutes from './routes/vector-search'
+import caseRoutes from './routes/case'
+import leadRoutes from './routes/leads'
 
 const app = express()
 const PORT = process.env.PORT || 4000
@@ -34,6 +36,8 @@ app.use('/api/feedback', writeLimiter, feedbackRoutes)
 app.use('/api/pipeline', authLimiter, pipelineRoutes)
 app.use('/api/admin/learning', authLimiter, learningMetricsRoutes)
 app.use('/api/vector-search', readLimiter, vectorSearchRoutes)
+app.use('/api/case', writeLimiter, caseRoutes)
+app.use('/api/leads', writeLimiter, leadRoutes)
 
 // Error handler (must be last)
 app.use(errorHandler)

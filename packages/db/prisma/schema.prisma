@@ -5,8 +5,8 @@ generator client {
 }
 
 datasource db {
-  provider   = "postgresql"
-  url        = env("DATABASE_URL")
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
   // extensions = [vector]  // Deferred to Phase 0 PGVECTOR-SETUP — requires pgvector-enabled Postgres image
 }
 
@@ -15,57 +15,60 @@ datasource db {
 // ╚══════════════════════════════════════════════════╝
 
 model Crash {
-  id                    String              @id @default(cuid())
-  stateUniqueId         String              @unique  // S1
-  agencyJurisdiction    String?                      // S2
-  policeReported        Boolean             @default(true)  // S3
-  stateReportable       Boolean             @default(true)  // S4
+  id                 String  @id @default(cuid())
+  stateUniqueId      String  @unique // S1
+  agencyJurisdiction String? // S2
+  policeReported     Boolean @default(true) // S3
+  stateReportable    Boolean @default(true) // S4
 
   // C-series: Crash-level
-  crashDate             DateTime                     // C1
-  crashTime             String?                      // C2
-  roadwayClearanceTime  DateTime?                    // C3
-  county                String?                      // C4
-  latitude              Float?                       // C5
-  longitude             Float?                       // C5
-  firstHarmfulEvent     String?                      // C6
-  firstHarmfulEventLoc  String?                      // C7
-  mannerOfCollision     MannerOfCollision?           // C8
-  atmosphericCondition  AtmosphericCondition?        // C9
-  lightCondition        LightCondition?              // C10
-  relationToJunction    String?                      // C11
-  intersectionType      String?                      // C12
-  schoolBusRelated      Boolean             @default(false) // C13
-  workZone              Json?                        // C14
-  secondaryCrash        Boolean             @default(false) // C15
-  crashRelatedFactors   String[]                     // C16
+  crashDate            DateTime // C1
+  crashTime            String? // C2
+  roadwayClearanceTime DateTime? // C3
+  county               String? // C4
+  latitude             Float? // C5
+  longitude            Float? // C5
+  firstHarmfulEvent    String? // C6
+  firstHarmfulEventLoc String? // C7
+  mannerOfCollision    MannerOfCollision? // C8
+  atmosphericCondition AtmosphericCondition? // C9
+  lightCondition       LightCondition? // C10
+  relationToJunction   String? // C11
+  intersectionType     String? // C12
+  schoolBusRelated     Boolean               @default(false) // C13
+  workZone             Json? // C14
+  secondaryCrash       Boolean               @default(false) // C15
+  crashRelatedFactors  String[] // C16
 
   // Derived
-  crashSeverity         CrashSeverity?
-  stateCode             String              // 2-letter state code
-  cityName              String?
-  streetAddress         String?
+  crashSeverity CrashSeverity?
+  stateCode     String // 2-letter state code
+  cityName      String?
+  streetAddress String?
 
   // Relations
-  vehicles              Vehicle[]
-  persons               Person[]
-  narratives            CrashNarrative[]
-  equalizer             CrashEqualizer?
-  feedbackEvents        FeedbackEvent[]
+  vehicles       Vehicle[]
+  persons        Person[]
+  narratives     CrashNarrative[]
+  equalizer      CrashEqualizer?
+  feedbackEvents FeedbackEvent[]
+
+  // Case Memory
+  matters Matter[]
 
   // Clustering
-  archetypeId           String?
-  archetype             CrashArchetype?     @relation(fields: [archetypeId], references: [id])
+  archetypeId String?
+  archetype   CrashArchetype? @relation(fields: [archetypeId], references: [id])
 
   // Verification
-  confirmationCount     Int                 @default(0)
-  isVerified            Boolean             @default(false)
+  confirmationCount Int     @default(0)
+  isVerified        Boolean @default(false)
 
   // Metadata
-  dataSource            String
-  rawData               Json?
-  createdAt             DateTime            @default(now())
-  updatedAt             DateTime            @updatedAt
+  dataSource String
+  rawData    Json?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   @@index([crashDate])
   @@index([county])
@@ -78,84 +81,84 @@ model Crash {
 }
 
 model Vehicle {
-  id                          String    @id @default(cuid())
-  crashId                     String
-  crash                       Crash     @relation(fields: [crashId], references: [id], onDelete: Cascade)
+  id      String @id @default(cuid())
+  crashId String
+  crash   Crash  @relation(fields: [crashId], references: [id], onDelete: Cascade)
 
   // V-series
-  vin                         String?            // V1
-  unitTypeAndNumber           Int?               // V2
-  registrationState           String?            // V3
-  licensePlate                String?            // V4
-  make                        String?            // V5
-  modelYear                   Int?               // V6
-  model                       String?            // V7
-  bodyType                    BodyTypeCategory?  // V8
-  totalOccupants              Int?               // V9
-  specialFunction             String?            // V10
-  emergencyUse                Boolean  @default(false) // V11
-  speedLimit                  Int?               // V12
-  directionOfTravel           String?            // V13
-  trafficwayDesc              String?            // V14
-  totalLanes                  Int?               // V15
-  hitAndRun                   Boolean  @default(false) // V17
-  sequenceOfEvents            String[]           // V18
-  mostHarmfulEvent            String?            // V19
-  contributingCircumstances   String[]           // V20
+  vin                       String? // V1
+  unitTypeAndNumber         Int? // V2
+  registrationState         String? // V3
+  licensePlate              String? // V4
+  make                      String? // V5
+  modelYear                 Int? // V6
+  model                     String? // V7
+  bodyType                  BodyTypeCategory? // V8
+  totalOccupants            Int? // V9
+  specialFunction           String? // V10
+  emergencyUse              Boolean           @default(false) // V11
+  speedLimit                Int? // V12
+  directionOfTravel         String? // V13
+  trafficwayDesc            String? // V14
+  totalLanes                Int? // V15
+  hitAndRun                 Boolean           @default(false) // V17
+  sequenceOfEvents          String[] // V18
+  mostHarmfulEvent          String? // V19
+  contributingCircumstances String[] // V20
 
   // Relations
-  driver                      Driver?
-  persons                     Person[]
+  driver  Driver?
+  persons Person[]
 
   @@index([crashId])
   @@index([vin])
 }
 
 model Driver {
-  id                    String    @id @default(cuid())
-  vehicleId             String    @unique
-  vehicle               Vehicle   @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
-  personId              String?   @unique
-  person                Person?   @relation(fields: [personId], references: [id])
+  id        String  @id @default(cuid())
+  vehicleId String  @unique
+  vehicle   Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  personId  String? @unique
+  person    Person? @relation(fields: [personId], references: [id])
 
   // D-series (NEW in MMUCC 6th Edition)
-  licenseJurisdiction   String?            // D1
-  licenseClass          String?            // D2
-  licenseStatus         String?            // D3
-  speedingRelated       Boolean?           // D4
-  driverActions         String[]           // D5
-  distractedBy          String?            // D6
-  driverCondition       String?            // D7
-  suspectedAlcoholDrug  Boolean?           // D8
-  alcoholDrugTestResults Json?             // D9
-  driverRelatedFactors  String[]           // D10
+  licenseJurisdiction    String? // D1
+  licenseClass           String? // D2
+  licenseStatus          String? // D3
+  speedingRelated        Boolean? // D4
+  driverActions          String[] // D5
+  distractedBy           String? // D6
+  driverCondition        String? // D7
+  suspectedAlcoholDrug   Boolean? // D8
+  alcoholDrugTestResults Json? // D9
+  driverRelatedFactors   String[] // D10
 }
 
 model Person {
-  id                    String       @id @default(cuid())
-  crashId               String
-  crash                 Crash        @relation(fields: [crashId], references: [id], onDelete: Cascade)
-  vehicleId             String?
-  vehicle               Vehicle?     @relation(fields: [vehicleId], references: [id])
+  id        String   @id @default(cuid())
+  crashId   String
+  crash     Crash    @relation(fields: [crashId], references: [id], onDelete: Cascade)
+  vehicleId String?
+  vehicle   Vehicle? @relation(fields: [vehicleId], references: [id])
 
   // P-series
-  name                  String?              // P1 (encrypted at rest, excluded from public API)
-  dateOfBirth           DateTime?            // P2
-  sex                   Sex?                 // P3
-  personType            PersonType           // P4
-  injuryStatus          InjuryStatus?        // P5 (KABCO)
-  motorVehicleUnitNumber Int?                // P6
-  seatingPosition       String?              // P7
-  restraintUse          String?              // P8
-  airBagDeployed        String?              // P9
-  ejection              String?              // P10
-  nonMotoristLocation   String?              // P11
-  nonMotoristAction     String?              // P12
-  nonMotoristCondition  String?              // P13
-  personRelatedFactors  String[]             // P14
+  name                   String? // P1 (encrypted at rest, excluded from public API)
+  dateOfBirth            DateTime? // P2
+  sex                    Sex? // P3
+  personType             PersonType // P4
+  injuryStatus           InjuryStatus? // P5 (KABCO)
+  motorVehicleUnitNumber Int? // P6
+  seatingPosition        String? // P7
+  restraintUse           String? // P8
+  airBagDeployed         String? // P9
+  ejection               String? // P10
+  nonMotoristLocation    String? // P11
+  nonMotoristAction      String? // P12
+  nonMotoristCondition   String? // P13
+  personRelatedFactors   String[] // P14
 
   // Reverse relation
-  driver                Driver?
+  driver Driver?
 
   @@index([crashId])
   @@index([injuryStatus])
@@ -167,113 +170,115 @@ model Person {
 // ╚══════════════════════════════════════════════════╝
 
 model CrashNarrative {
-  id              String    @id @default(cuid())
-  crashId         String    @unique
-  crash           Crash     @relation(fields: [crashId], references: [id], onDelete: Cascade)
+  id      String @id @default(cuid())
+  crashId String @unique
+  crash   Crash  @relation(fields: [crashId], references: [id], onDelete: Cascade)
 
   // Structured output (10 sections)
-  content         Json      // CrashNarrativeContent shape
-  summary         String    // 2-3 sentence plain text summary
+  content Json // CrashNarrativeContent shape
+  summary String // 2-3 sentence plain text summary
 
   // Quality metrics
-  factualAccuracy Float?    // 0-1
-  toneScore       Float?    // 0-1
-  readabilityScore Float?   // Flesch-Kincaid grade level
-  approvalRate    Float?    // from feedback
+  factualAccuracy  Float? // 0-1
+  toneScore        Float? // 0-1
+  readabilityScore Float? // Flesch-Kincaid grade level
+  approvalRate     Float? // from feedback
 
   // Metadata
-  modelTier       String    // premium | standard | budget
-  modelId         String    // exact model used
-  promptVersion   String?   // links to PromptVersion.id
-  dataTier        String    // RICH | STANDARD | MINIMAL
-  generatedAt     DateTime  @default(now())
-  generationMs    Int?      // latency tracking
+  modelTier     String // premium | standard | budget
+  modelId       String // exact model used
+  promptVersion String? // links to PromptVersion.id
+  dataTier      String // RICH | STANDARD | MINIMAL
+  generatedAt   DateTime @default(now())
+  generationMs  Int? // latency tracking
 
   @@index([modelTier])
   @@index([dataTier])
 }
 
 model CrashEqualizer {
-  id                String    @id @default(cuid())
-  crashId           String    @unique
-  crash             Crash     @relation(fields: [crashId], references: [id], onDelete: Cascade)
+  id      String @id @default(cuid())
+  crashId String @unique
+  crash   Crash  @relation(fields: [crashId], references: [id], onDelete: Cascade)
 
   // Comparable Cohort
-  comparableCohort  Json
-  confidenceLevel   String    // HIGH | MEDIUM | LOW
+  comparableCohort Json
+  confidenceLevel  String // HIGH | MEDIUM | LOW
 
   // Liability Signals
-  liabilitySignals  Json
+  liabilitySignals Json
 
   // Settlement Context
   settlementContext Json
 
   // Attorney Matches
-  attorneyMatches   Json
+  attorneyMatches Json
 
   // AI Briefing
-  briefingSections  Json
-  disclaimer        String    @default("This analysis is based on public crash data and is not legal advice.")
+  briefingSections Json
+  disclaimer       String @default("This analysis is based on public crash data and is not legal advice.")
 
   // Metadata
-  modelVersion      String
-  generatedAt       DateTime  @default(now())
-  generationMs      Int?
+  modelVersion String
+  generatedAt  DateTime @default(now())
+  generationMs Int?
 
   @@index([confidenceLevel])
 }
 
 model Attorney {
-  id                String    @id @default(cuid())
-  slug              String    @unique
-  name              String
-  firmName          String?
-  phone             String?
-  email             String?
-  website           String?
-  domain            String?
-  googlePlaceId     String?   @unique
-  googleCid         String?   @unique
+  id            String  @id @default(cuid())
+  slug          String  @unique
+  name          String
+  firmName      String?
+  phone         String?
+  email         String?
+  website       String?
+  domain        String?
+  googlePlaceId String? @unique
+  googleCid     String? @unique
 
   // Location
-  address           String?
-  addressInfo       Json?     // Structured address components
-  city              String?
-  stateCode         String?
-  zipCode           String?
-  latitude          Float?
-  longitude         Float?
+  address     String?
+  addressInfo Json? // Structured address components
+  city        String?
+  stateCode   String?
+  zipCode     String?
+  latitude    Float?
+  longitude   Float?
 
   // Google Business Profile
-  description       String?
-  category          String?
-  categoryIds       String[]
+  description          String?
+  category             String?
+  categoryIds          String[]
   additionalCategories String[]
-  logoUrl           String?
-  mainImageUrl      String?
-  totalPhotos       Int?      @default(0)
-  isClaimed         Boolean?  @default(false)
-  googleRating      Float?
-  googleReviewCount Int?      @default(0)
-  ratingDistribution Json?    // { "1": 5, "2": 3, "3": 10, ... }
-  workHours         Json?
-  attributes        Json?     // Business attributes from Google
-  peopleAlsoSearch  Json?     // Related businesses
-  googleMapsUrl     String?
-  contactInfo       Json?     // Array of { type, value, source }
+  logoUrl              String?
+  mainImageUrl         String?
+  totalPhotos          Int?     @default(0)
+  isClaimed            Boolean? @default(false)
+  googleRating         Float?
+  googleReviewCount    Int?     @default(0)
+  ratingDistribution   Json? // { "1": 5, "2": 3, "3": 10, ... }
+  workHours            Json?
+  attributes           Json? // Business attributes from Google
+  peopleAlsoSearch     Json? // Related businesses
+  googleMapsUrl        String?
+  contactInfo          Json? // Array of { type, value, source }
 
   // Specializations
-  practiceAreas     String[]
-  barNumber         String?
-  yearsExperience   Int?
+  practiceAreas   String[]
+  barNumber       String?
+  yearsExperience Int?
 
   // Relations
-  reviews           AttorneyReview[]
+  reviews            AttorneyReview[]
   reviewIntelligence ReviewIntelligence?
-  attorneyIndex     AttorneyIndex?
+  attorneyIndex      AttorneyIndex?
+  matters            Matter[]
+  leads              LeadRequest[]
 
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([stateCode])
   @@index([city])
@@ -282,42 +287,42 @@ model Attorney {
 }
 
 model AttorneyReview {
-  id              String    @id @default(cuid())
-  attorneyId      String
-  attorney        Attorney  @relation(fields: [attorneyId], references: [id], onDelete: Cascade)
+  id         String   @id @default(cuid())
+  attorneyId String
+  attorney   Attorney @relation(fields: [attorneyId], references: [id], onDelete: Cascade)
 
   // Google review data
-  googleReviewId  String?   @unique
-  authorName      String?
-  authorImageUrl  String?
+  googleReviewId   String?   @unique
+  authorName       String?
+  authorImageUrl   String?
   authorProfileUrl String?
-  rating          Int       // 1-5
-  text            String?
-  reviewUrl       String?
-  publishedAt     DateTime?
-  timeAgo         String?
-  language        String?   @default("en")
+  rating           Int // 1-5
+  text             String?
+  reviewUrl        String?
+  publishedAt      DateTime?
+  timeAgo          String?
+  language         String?   @default("en")
 
   // Extended review fields
-  isLocalGuide    Boolean?  @default(false)
-  photosCount     Int?      @default(0)
-  images          Json?     // Array of { image_url, alt }
+  isLocalGuide    Boolean? @default(false)
+  photosCount     Int?     @default(0)
+  images          Json? // Array of { image_url, alt }
   ownerResponse   String?
-  ownerResponseAt String?   // timestamp string from DataForSEO
+  ownerResponseAt String? // timestamp string from DataForSEO
 
   // Analyzed dimensions
-  dimensions      Json?
+  dimensions Json?
 
-  createdAt       DateTime  @default(now())
+  createdAt DateTime @default(now())
 
   @@index([attorneyId])
   @@index([rating])
 }
 
 model ReviewIntelligence {
-  id              String    @id @default(cuid())
-  attorneyId      String    @unique
-  attorney        Attorney  @relation(fields: [attorneyId], references: [id], onDelete: Cascade)
+  id         String   @id @default(cuid())
+  attorneyId String   @unique
+  attorney   Attorney @relation(fields: [attorneyId], references: [id], onDelete: Cascade)
 
   // Dimension scores (0-100 each)
   communication   Float
@@ -330,27 +335,27 @@ model ReviewIntelligence {
   satisfaction    Float
 
   // Trend analysis
-  trend           String    // IMPROVING | STABLE | DECLINING
-  trendPeriodMonths Int     @default(12)
+  trend             String // IMPROVING | STABLE | DECLINING
+  trendPeriodMonths Int    @default(12)
 
   // Pull quotes
-  bestQuotes      Json
+  bestQuotes Json
 
   // Metadata
-  reviewCount     Int
-  analyzedAt      DateTime  @default(now())
+  reviewCount Int
+  analyzedAt  DateTime @default(now())
 
   @@index([communication])
   @@index([outcome])
 }
 
 model AttorneyIndex {
-  id              String    @id @default(cuid())
-  attorneyId      String    @unique
-  attorney        Attorney  @relation(fields: [attorneyId], references: [id], onDelete: Cascade)
+  id         String   @id @default(cuid())
+  attorneyId String   @unique
+  attorney   Attorney @relation(fields: [attorneyId], references: [id], onDelete: Cascade)
 
   // Composite score (0-100)
-  score           Float
+  score Float
 
   // Component scores
   communicationScore  Float
@@ -360,9 +365,9 @@ model AttorneyIndex {
   specialtyScore      Float
 
   // Metadata
-  computedAt      DateTime  @default(now())
-  reviewCount     Int
-  dataQuality     String    // HIGH | MEDIUM | LOW
+  computedAt  DateTime @default(now())
+  reviewCount Int
+  dataQuality String // HIGH | MEDIUM | LOW
 
   @@index([score])
 }
@@ -372,24 +377,24 @@ model AttorneyIndex {
 // ╚══════════════════════════════════════════════════╝
 
 model GeoEntity {
-  id              String    @id @default(cuid())
-  type            GeoEntityType
-  name            String
-  stateCode       String
-  countyFips      String?
-  cityFips        String?
-  parentId        String?
-  parent          GeoEntity?  @relation("GeoHierarchy", fields: [parentId], references: [id])
-  children        GeoEntity[] @relation("GeoHierarchy")
-  latitude        Float?
-  longitude       Float?
-  population      Int?
+  id         String        @id @default(cuid())
+  type       GeoEntityType
+  name       String
+  stateCode  String
+  countyFips String?
+  cityFips   String?
+  parentId   String?
+  parent     GeoEntity?    @relation("GeoHierarchy", fields: [parentId], references: [id])
+  children   GeoEntity[]   @relation("GeoHierarchy")
+  latitude   Float?
+  longitude  Float?
+  population Int?
 
   // Legal context
   statuteOfLimitationsYears Int?
-  faultType       String?
+  faultType                 String?
 
-  createdAt       DateTime  @default(now())
+  createdAt DateTime @default(now())
 
   @@unique([type, stateCode, name])
   @@index([stateCode])
@@ -397,23 +402,23 @@ model GeoEntity {
 }
 
 model Intersection {
-  id              String    @id @default(cuid())
-  name            String
-  stateCode       String
-  city            String?
-  latitude        Float
-  longitude       Float
+  id        String  @id @default(cuid())
+  name      String
+  stateCode String
+  city      String?
+  latitude  Float
+  longitude Float
 
   // Safety metrics
-  dangerScore     Float?
-  totalCrashes    Int       @default(0)
-  fatalCrashes    Int       @default(0)
-  injuryCrashes   Int       @default(0)
-  lastCrashDate   DateTime?
-  lastComputedAt  DateTime?
+  dangerScore    Float?
+  totalCrashes   Int       @default(0)
+  fatalCrashes   Int       @default(0)
+  injuryCrashes  Int       @default(0)
+  lastCrashDate  DateTime?
+  lastComputedAt DateTime?
 
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([latitude, longitude])
   @@index([stateCode])
@@ -427,7 +432,7 @@ model Intersection {
 model DataSource {
   id              String    @id @default(cuid())
   name            String    @unique
-  type            String    // FARS | ARCGIS | SOCRATA | PDF | MANUAL
+  type            String // FARS | ARCGIS | SOCRATA | PDF | MANUAL
   stateCode       String?
   endpoint        String?
   config          Json?
@@ -437,29 +442,29 @@ model DataSource {
   errorCount      Int       @default(0)
   lastError       String?
 
-  pipelineRuns    PipelineRun[]
+  pipelineRuns PipelineRun[]
 
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([type])
   @@index([isActive])
 }
 
 model PipelineRun {
-  id              String    @id @default(cuid())
-  dataSourceId    String
-  dataSource      DataSource @relation(fields: [dataSourceId], references: [id])
+  id           String     @id @default(cuid())
+  dataSourceId String
+  dataSource   DataSource @relation(fields: [dataSourceId], references: [id])
 
-  stage           String    // BRONZE | SILVER | GOLD
-  status          String    // RUNNING | COMPLETED | FAILED
-  recordsIn       Int       @default(0)
-  recordsOut      Int       @default(0)
-  recordsFailed   Int       @default(0)
-  errorLog        Json?
-  startedAt       DateTime  @default(now())
-  completedAt     DateTime?
-  durationMs      Int?
+  stage         String // BRONZE | SILVER | GOLD
+  status        String // RUNNING | COMPLETED | FAILED
+  recordsIn     Int       @default(0)
+  recordsOut    Int       @default(0)
+  recordsFailed Int       @default(0)
+  errorLog      Json?
+  startedAt     DateTime  @default(now())
+  completedAt   DateTime?
+  durationMs    Int?
 
   @@index([dataSourceId])
   @@index([status])
@@ -467,15 +472,15 @@ model PipelineRun {
 }
 
 model PipelineDeadLetter {
-  id              String    @id @default(cuid())
-  dataSourceId    String
-  stage           String    // BRONZE | SILVER | GOLD
-  rawRecord       Json
-  error           String
-  errorType       String    // VALIDATION | MAPPING | DUPLICATE | UNKNOWN
-  retryCount      Int       @default(0)
-  resolvedAt      DateTime?
-  createdAt       DateTime  @default(now())
+  id           String    @id @default(cuid())
+  dataSourceId String
+  stage        String // BRONZE | SILVER | GOLD
+  rawRecord    Json
+  error        String
+  errorType    String // VALIDATION | MAPPING | DUPLICATE | UNKNOWN
+  retryCount   Int       @default(0)
+  resolvedAt   DateTime?
+  createdAt    DateTime  @default(now())
 
   @@index([dataSourceId])
   @@index([stage])
@@ -500,20 +505,20 @@ model PipelineDeadLetter {
 // ╚══════════════════════════════════════════════════╝
 
 model CrashArchetype {
-  id                  String    @id @default(cuid())
-  name                String
-  stateCode           String?
-  centroid            Json
-  crashCount          Int
-  avgSeverity         Float
-  injuryRate          Float
-  fatalityRate        Float
-  seasonalPattern     Json
-  definingAttributes  Json
-  crashes             Crash[]
+  id                 String  @id @default(cuid())
+  name               String
+  stateCode          String?
+  centroid           Json
+  crashCount         Int
+  avgSeverity        Float
+  injuryRate         Float
+  fatalityRate       Float
+  seasonalPattern    Json
+  definingAttributes Json
+  crashes            Crash[]
 
-  createdAt           DateTime  @default(now())
-  updatedAt           DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([stateCode])
   @@index([crashCount])
@@ -524,15 +529,15 @@ model CrashArchetype {
 // ╚══════════════════════════════════════════════════╝
 
 model FeedbackEvent {
-  id              String    @id @default(cuid())
-  type            String
-  crashId         String?
-  crash           Crash?    @relation(fields: [crashId], references: [id])
-  sessionId       String
-  value           Json
-  experimentId    String?
-  variant         String?
-  createdAt       DateTime  @default(now())
+  id           String   @id @default(cuid())
+  type         String
+  crashId      String?
+  crash        Crash?   @relation(fields: [crashId], references: [id])
+  sessionId    String
+  value        Json
+  experimentId String?
+  variant      String?
+  createdAt    DateTime @default(now())
 
   @@index([type])
   @@index([crashId])
@@ -542,11 +547,11 @@ model FeedbackEvent {
 }
 
 model FeedbackAggregate {
-  id                    String    @id @default(cuid())
-  period                String    // YYYY-MM-DD
-  crashType             String?
-  severity              String?
-  archetypeId           String?
+  id          String  @id @default(cuid())
+  period      String // YYYY-MM-DD
+  crashType   String?
+  severity    String?
+  archetypeId String?
 
   narrativeApprovalRate Float
   equalizerUsefulRate   Float
@@ -555,26 +560,26 @@ model FeedbackAggregate {
   attorneyClickRate     Float
   sampleSize            Int
 
-  createdAt             DateTime  @default(now())
+  createdAt DateTime @default(now())
 
   @@unique([period, crashType, severity])
   @@index([period])
 }
 
 model PromptVersion {
-  id              String    @id @default(cuid())
-  signature       String
-  version         Int
-  parentId        String?
-  archetypeId     String?
+  id          String  @id @default(cuid())
+  signature   String
+  version     Int
+  parentId    String?
+  archetypeId String?
 
-  promptContent   Json
-  mutations       Json?
-  scores          Json?
-  compositeScore  Float?
+  promptContent  Json
+  mutations      Json?
+  scores         Json?
+  compositeScore Float?
 
-  isActive        Boolean   @default(false)
-  createdAt       DateTime  @default(now())
+  isActive  Boolean  @default(false)
+  createdAt DateTime @default(now())
 
   @@unique([signature, version])
   @@index([signature, isActive])
@@ -582,15 +587,15 @@ model PromptVersion {
 }
 
 model Experiment {
-  id              String    @id @default(cuid())
-  name            String
-  signature       String
-  variants        Json
-  status          String    // RUNNING | COMPLETED | PROMOTED
-  winnerId        String?
+  id        String  @id @default(cuid())
+  name      String
+  signature String
+  variants  Json
+  status    String // RUNNING | COMPLETED | PROMOTED
+  winnerId  String?
 
-  startedAt       DateTime  @default(now())
-  completedAt     DateTime?
+  startedAt   DateTime  @default(now())
+  completedAt DateTime?
 
   @@index([status])
   @@index([signature])
@@ -601,15 +606,15 @@ model Experiment {
 // ╚══════════════════════════════════════════════════╝
 
 model AgentSession {
-  id              String    @id @default(cuid())
-  agentId         String
-  action          String
-  input           Json?
-  output          Json?
-  status          String    // SUCCESS | FAILED | SKIPPED
-  durationMs      Int?
-  error           String?
-  createdAt       DateTime  @default(now())
+  id         String   @id @default(cuid())
+  agentId    String
+  action     String
+  input      Json?
+  output     Json?
+  status     String // SUCCESS | FAILED | SKIPPED
+  durationMs Int?
+  error      String?
+  createdAt  DateTime @default(now())
 
   @@index([agentId])
   @@index([status])
@@ -715,4 +720,330 @@ enum GeoEntityType {
   COUNTY
   CITY
   TRACT
+}
+
+// ╔══════════════════════════════════════════════════╗
+// ║  CASE MEMORY SYSTEM                              ║
+// ╚══════════════════════════════════════════════════╝
+
+enum MatterStatus {
+  INTAKE
+  ACTIVE
+  TREATING
+  DEMAND_PREP
+  LITIGATION
+  SETTLED
+  CLOSED
+}
+
+enum EpisodeType {
+  CALL_TRANSCRIPT
+  CHAT_MESSAGE
+  VOICE_NOTE
+  LOCATION_VISIT
+  PHOTO
+  DOCUMENT
+  EMAIL_EXTRACT
+  SYSTEM_EVENT
+  CONFIRMATION_RESPONSE
+}
+
+enum CaseEntityType {
+  PERSON
+  ORGANIZATION
+  FACILITY
+  INJURY
+  BODY_PART
+  MEDICATION
+  CLAIM
+  VEHICLE_ENTITY
+  POLICY
+  APPOINTMENT
+  EXPENSE
+}
+
+enum FactStatus {
+  CANDIDATE
+  CONFIRMED
+  REJECTED
+  SUPERSEDED
+}
+
+model Matter {
+  id String @id @default(cuid())
+
+  // Owner (Clerk user ID)
+  userId String?
+
+  // Client info (minimal — populated from extraction)
+  clientName  String?
+  clientPhone String?
+  clientEmail String?
+
+  // Case links
+  crashId    String?
+  crash      Crash?    @relation(fields: [crashId], references: [id])
+  attorneyId String?
+  attorney   Attorney? @relation(fields: [attorneyId], references: [id])
+
+  // Case metadata
+  status          MatterStatus @default(INTAKE)
+  accidentDate    DateTime?
+  stateCode       String?
+  statuteDeadline DateTime?
+
+  // Relations
+  episodes       Episode[]
+  entities       CaseEntity[]
+  facts          CaseFact[]
+  timelineEvents CaseTimeline[]
+  confirmations  Confirmation[]
+
+  // Tracking
+  lastActivityAt DateTime @default(now())
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@index([crashId])
+  @@index([attorneyId])
+  @@index([stateCode])
+  @@index([lastActivityAt])
+}
+
+model Episode {
+  id       String @id @default(cuid())
+  matterId String
+  matter   Matter @relation(fields: [matterId], references: [id], onDelete: Cascade)
+
+  // Episode classification
+  type  EpisodeType
+  title String?
+
+  // Content (polymorphic via type)
+  textContent String?
+  mediaUrl    String?
+  mediaType   String?
+  metadata    Json?
+
+  // Location context
+  latitude     Float?
+  longitude    Float?
+  locationName String?
+
+  // Extraction state
+  isProcessed       Boolean @default(false)
+  extractedEntities Json?
+
+  // Timing
+  occurredAt DateTime
+  duration   Int?
+
+  createdAt DateTime @default(now())
+
+  // Relations
+  entities       CaseEntity[]   @relation("EpisodeEntities")
+  facts          CaseFact[]     @relation("EpisodeFacts")
+  timelineEvents CaseTimeline[]
+
+  @@index([matterId])
+  @@index([type])
+  @@index([occurredAt])
+  @@index([isProcessed])
+  @@index([matterId, type, occurredAt])
+}
+
+model CaseEntity {
+  id       String @id @default(cuid())
+  matterId String
+  matter   Matter @relation(fields: [matterId], references: [id], onDelete: Cascade)
+
+  // Entity classification
+  type           CaseEntityType
+  name           String
+  normalizedName String?
+
+  // Flexible attributes (type-dependent via JSONB)
+  attributes Json @default("{}")
+
+  // Confidence & provenance
+  confidence       Float    @default(0.5)
+  sourceEpisodeIds String[]
+
+  // Relations
+  sourceEpisodes Episode[]  @relation("EpisodeEntities")
+  facts          CaseFact[] @relation("EntityFacts")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([matterId])
+  @@index([type])
+  @@index([normalizedName])
+  @@index([matterId, type])
+}
+
+model CaseFact {
+  id       String @id @default(cuid())
+  matterId String
+  matter   Matter @relation(fields: [matterId], references: [id], onDelete: Cascade)
+
+  // Fact content (subject-predicate-object triple)
+  subject   String
+  predicate String
+  object    String
+
+  // Temporal validity
+  validFrom  DateTime
+  validUntil DateTime?
+
+  // Status & confidence
+  status     FactStatus @default(CANDIDATE)
+  confidence Float      @default(0.5)
+
+  // Provenance
+  sourceEpisodeIds String[]
+  sourceEpisodes   Episode[]    @relation("EpisodeFacts")
+  sourceEntities   CaseEntity[] @relation("EntityFacts")
+  supersededById   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([matterId])
+  @@index([predicate])
+  @@index([status])
+  @@index([validFrom])
+  @@index([matterId, status, validFrom])
+}
+
+model CaseTimeline {
+  id       String @id @default(cuid())
+  matterId String
+  matter   Matter @relation(fields: [matterId], references: [id], onDelete: Cascade)
+
+  // Event classification
+  category    String
+  title       String
+  description String?
+
+  // Timing
+  occurredAt DateTime
+  duration   Int?
+
+  // Provenance
+  episodeId String?
+  episode   Episode? @relation(fields: [episodeId], references: [id])
+
+  // Metadata
+  metadata Json?
+  isGap    Boolean @default(false)
+  gapDays  Int?
+
+  createdAt DateTime @default(now())
+
+  @@index([matterId])
+  @@index([category])
+  @@index([occurredAt])
+  @@index([matterId, occurredAt])
+}
+
+model Confirmation {
+  id       String @id @default(cuid())
+  matterId String
+  matter   Matter @relation(fields: [matterId], references: [id], onDelete: Cascade)
+
+  // What we're confirming
+  prompt    String
+  episodeId String?
+  factId    String?
+  entityId  String?
+
+  // Response
+  confirmed   Boolean?
+  respondedAt DateTime?
+
+  // Delivery
+  notificationId String?
+  sentAt         DateTime  @default(now())
+  expiresAt      DateTime?
+
+  @@index([matterId])
+  @@index([confirmed])
+  @@index([sentAt])
+}
+
+model Provider {
+  id             String  @id @default(cuid())
+  name           String
+  type           String
+  address        String?
+  latitude       Float
+  longitude      Float
+  phone          String?
+  npi            String?
+  geofenceRadius Int     @default(100)
+
+  // Metadata
+  stateCode String?
+  city      String?
+
+  createdAt DateTime @default(now())
+
+  @@index([latitude, longitude])
+  @@index([type])
+  @@index([stateCode])
+}
+
+// ╔══════════════════════════════════════════════════╗
+// ║  COMMERCIAL: Lead Generation & Email Capture     ║
+// ╚══════════════════════════════════════════════════╝
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  QUALIFIED
+  CONVERTED
+  CLOSED
+}
+
+model LeadRequest {
+  id         String   @id @default(cuid())
+  attorneyId String
+  attorney   Attorney @relation(fields: [attorneyId], references: [id])
+
+  // Contact info
+  name    String
+  phone   String
+  email   String?
+  message String?
+
+  // Context
+  crashId  String?
+  matterId String?
+  source   String  @default("attorney_profile") // attorney_profile, equalizer, search
+
+  // Status
+  status LeadStatus @default(NEW)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([attorneyId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model EmailCapture {
+  id       String  @id @default(cuid())
+  email    String
+  source   String  @default("equalizer") // equalizer, attorney_badge, newsletter
+  crashId  String?
+  metadata Json?
+
+  createdAt DateTime @default(now())
+
+  @@unique([email, source])
+  @@index([createdAt])
 }

@@ -59,17 +59,24 @@ export default function LearningDashboard() {
   const [experiments, setExperiments] = useState<ExperimentData[]>([])
   const [costs, setCosts] = useState<CostBreakdown | null>(null)
   const [loading, setLoading] = useState(true)
+  const [fetchError, setFetchError] = useState(false)
   const [selectedSignature, setSelectedSignature] = useState('narrative')
 
   const fetchData = useCallback(async () => {
     setLoading(true)
+    setFetchError(false)
     try {
+      const controller = new AbortController()
+      const timeout = setTimeout(() => controller.abort(), 10_000)
+
       const [trendsRes, lineageRes, experimentsRes, costsRes] = await Promise.all([
-        fetch(`${API_BASE}/api/admin/learning/quality-trends`),
-        fetch(`${API_BASE}/api/admin/learning/prompt-lineage?signature=${selectedSignature}`),
-        fetch(`${API_BASE}/api/admin/learning/experiments`),
-        fetch(`${API_BASE}/api/admin/learning/cost-breakdown`),
+        fetch(`${API_BASE}/api/admin/learning/quality-trends`, { signal: controller.signal }),
+        fetch(`${API_BASE}/api/admin/learning/prompt-lineage?signature=${selectedSignature}`, { signal: controller.signal }),
+        fetch(`${API_BASE}/api/admin/learning/experiments`, { signal: controller.signal }),
+        fetch(`${API_BASE}/api/admin/learning/cost-breakdown`, { signal: controller.signal }),
       ])
+
+      clearTimeout(timeout)
 
       if (trendsRes.ok) {
         const data = await trendsRes.json()
@@ -88,7 +95,7 @@ export default function LearningDashboard() {
         setCosts(data)
       }
     } catch {
-      // API may not be running
+      setFetchError(true)
     } finally {
       setLoading(false)
     }
@@ -103,6 +110,20 @@ export default function LearningDashboard() {
       <main className="mx-auto max-w-6xl px-4 py-8">
         <h1 className="text-2xl font-bold text-gray-900">Self-Learning Dashboard</h1>
         <p className="mt-4 text-gray-500">Loading metrics...</p>
+      </main>
+    )
+  }
+
+  if (fetchError) {
+    return (
+      <main className="mx-auto max-w-6xl px-4 py-8">
+        <h1 className="text-2xl font-bold text-gray-900">Self-Learning Dashboard</h1>
+        <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-4">
+          <p className="text-sm text-red-700">Unable to load metrics. The API may be unavailable.</p>
+          <button onClick={fetchData} className="mt-2 rounded bg-red-100 px-3 py-1 text-sm text-red-800 hover:bg-red-200">
+            Retry
+          </button>
+        </div>
       </main>
     )
   }

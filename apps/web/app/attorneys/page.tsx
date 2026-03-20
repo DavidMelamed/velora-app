@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { prisma } from '@velora/db'
+import { displayName } from '@velora/shared'
 
 export const metadata: Metadata = {
   title: 'Attorney Directory — Find Top Personal Injury Attorneys | Velora',
@@ -138,7 +139,7 @@ export default async function AttorneyDirectoryPage({
                         key={area}
                         className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600 dark:bg-gray-700 dark:text-gray-300"
                       >
-                        {area}
+                        {displayName(area)}
                       </span>
                     ))}
                     {attorney.practiceAreas.length > 4 && (

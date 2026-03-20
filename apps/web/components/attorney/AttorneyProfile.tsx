@@ -1,9 +1,11 @@
 'use client'
 
 import { ReviewDimensions, type DimensionScores } from './ReviewDimensions'
+import { ConsultationCTA } from './ConsultationCTA'
 
 interface AttorneyProfileProps {
   attorney: {
+    id: string
     name: string
     slug: string
     firmName?: string | null
@@ -119,6 +121,9 @@ export function AttorneyProfile({
 
         {/* Sidebar */}
         <div className="space-y-6">
+          {/* Consultation CTA */}
+          <ConsultationCTA attorneyId={attorney.id} attorneyName={attorney.name} />
+
           {/* Contact Card */}
           <div className="rounded-lg border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-800">
             <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-gray-500">

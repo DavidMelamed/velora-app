@@ -3,6 +3,7 @@ export const revalidate = 3600
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { prisma } from '@velora/db'
+import { displayName } from '@velora/shared'
 import type { CrashNarrativeContent, EqualizerBriefing, ComparableCohort, LiabilitySignal, SettlementContext, AttorneyMatch } from '@velora/shared'
 import { CrashHeader } from '@/components/crash/CrashHeader'
 import { CrashNarrative } from '@/components/crash/CrashNarrative'
@@ -63,7 +64,7 @@ export async function generateMetadata({ params }: CrashPageProps): Promise<Meta
     month: 'long',
     day: 'numeric',
   })
-  const severity = (crash.crashSeverity || 'Unknown').replace(/_/g, ' ').toLowerCase()
+  const severity = displayName(crash.crashSeverity) || 'Unknown'
 
   const narrative = crash.narratives[0]
   const narrativeContent = narrative?.content as unknown as CrashNarrativeContent | undefined
@@ -173,19 +174,19 @@ export default async function CrashPage({ params }: CrashPageProps) {
                   {crash.mannerOfCollision && (
                     <DetailItem
                       label="Collision Type"
-                      value={crash.mannerOfCollision.replace(/_/g, ' ')}
+                      value={displayName(crash.mannerOfCollision)}
                     />
                   )}
                   {crash.atmosphericCondition && (
                     <DetailItem
                       label="Weather"
-                      value={crash.atmosphericCondition.replace(/_/g, ' ')}
+                      value={displayName(crash.atmosphericCondition)}
                     />
                   )}
                   {crash.lightCondition && (
                     <DetailItem
                       label="Lighting"
-                      value={crash.lightCondition.replace(/_/g, ' ')}
+                      value={displayName(crash.lightCondition)}
                     />
                   )}
                   {crash.vehicles.length > 0 && (
@@ -217,7 +218,7 @@ export default async function CrashPage({ params }: CrashPageProps) {
                 {crash.intersectionType && (
                   <DetailItem
                     label="Intersection"
-                    value={crash.intersectionType.replace(/_/g, ' ')}
+                    value={displayName(crash.intersectionType)}
                   />
                 )}
               </dl>

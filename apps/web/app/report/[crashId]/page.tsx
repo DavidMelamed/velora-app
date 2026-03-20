@@ -2,7 +2,9 @@ import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { prisma } from '@velora/db'
 import type { CrashNarrativeContent, EqualizerBriefing, ComparableCohort, LiabilitySignal, SettlementContext, AttorneyMatch } from '@velora/shared'
+import { displayName } from '@velora/shared'
 import { SharePanel } from '@/components/crash/SharePanel'
+import { EmailGate } from '@/components/report/EmailGate'
 
 interface ReportPageProps {
   params: Promise<{ crashId: string }>
@@ -92,7 +94,7 @@ export default async function ReportPage({ params }: ReportPageProps) {
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <InfoCard label="Date" value={date} />
           <InfoCard label="Location" value={location} />
-          <InfoCard label="Severity" value={(crash.crashSeverity ?? 'Unknown').replace(/_/g, ' ')} />
+          <InfoCard label="Severity" value={displayName(crash.crashSeverity) || 'Unknown'} />
           <InfoCard label="Vehicles" value={String(crash.vehicles.length)} />
         </div>
         {narrativeContent?.summary && (
@@ -116,6 +118,8 @@ export default async function ReportPage({ params }: ReportPageProps) {
             </p>
           </section>
 
+          {/* Gated sections: require email to view */}
+          <EmailGate crashId={crash.id}>
           {/* Liability Signals */}
           {briefing.liability.length > 0 && (
             <section className="mb-8">
@@ -139,7 +143,7 @@ export default async function ReportPage({ params }: ReportPageProps) {
                     />
                     <div>
                       <div className="text-sm font-medium text-gray-900 dark:text-white">
-                        {signal.rule.replace(/_/g, ' ')}
+                        {displayName(signal.rule)}
                       </div>
                       <div className="text-xs text-gray-500">{signal.explanation}</div>
                     </div>
@@ -170,6 +174,7 @@ export default async function ReportPage({ params }: ReportPageProps) {
               </p>
             </section>
           )}
+          </EmailGate>
         </>
       )}
 

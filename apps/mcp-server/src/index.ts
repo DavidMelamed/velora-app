@@ -5,6 +5,7 @@ import { registerIntersectionTools } from './tools/intersection-tools'
 import { registerAttorneyTools } from './tools/attorney-tools'
 import { registerEqualizerTools } from './tools/equalizer-tools'
 import { registerTrendTools } from './tools/trend-tools'
+import { registerCaseTools } from './tools/case-tools'
 import { startHttpTransport } from './transports/http'
 
 const TOOL_LIST = [
@@ -21,6 +22,12 @@ const TOOL_LIST = [
   'get_equalizer',
   'get_crash_trends',
   'get_seasonal_patterns',
+  'get_case_summary',
+  'get_case_timeline',
+  'get_case_entities',
+  'get_active_facts',
+  'get_treatment_gaps',
+  'search_case_episodes',
 ]
 
 const server = new McpServer({
@@ -58,6 +65,7 @@ registerIntersectionTools(server)
 registerAttorneyTools(server)
 registerEqualizerTools(server)
 registerTrendTools(server)
+registerCaseTools(server)
 
 // ─── Server startup ─────────────────────────────────────────────────────────────
 

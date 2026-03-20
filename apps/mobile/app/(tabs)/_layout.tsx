@@ -6,7 +6,8 @@ function TabIcon({ name, focused }: { name: string; focused: boolean }) {
   const icons: Record<string, string> = {
     home: '🏠',
     search: '🔍',
-    alerts: '🔔',
+    case: '📋',
+    chat: '💬',
     profile: '👤',
   }
   return (
@@ -47,10 +48,17 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="alerts"
+        name="case"
         options={{
-          title: 'Alerts',
-          tabBarIcon: ({ focused }) => <TabIcon name="alerts" focused={focused} />,
+          title: 'My Case',
+          tabBarIcon: ({ focused }) => <TabIcon name="case" focused={focused} />,
+        }}
+      />
+      <Tabs.Screen
+        name="chat"
+        options={{
+          title: 'Chat',
+          tabBarIcon: ({ focused }) => <TabIcon name="chat" focused={focused} />,
         }}
       />
       <Tabs.Screen

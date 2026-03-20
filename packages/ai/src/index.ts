@@ -93,3 +93,8 @@ export {
   rerankAndEnrich,
 } from './vector'
 export type { ReviewPoint, VectorHit, RankedAttorneyResult } from './vector'
+
+// Entity Extraction (Case Memory)
+export { extractEntities } from './extraction/entity-extractor'
+export { ExtractionResult } from './extraction/schemas'
+export type { ExtractionResultType } from './extraction/schemas'

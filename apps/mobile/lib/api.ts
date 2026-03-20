@@ -136,6 +136,68 @@ class VeloraApiClient {
       { method: 'POST', body: details }
     )
   }
+
+  // ─── Case Memory ──────────────────────────────────
+
+  async createMatter(input: { crashId?: string; accidentDate?: string; stateCode?: string; clientName?: string }) {
+    return this.request<MatterResponse>('/api/case', { method: 'POST', body: input })
+  }
+
+  async getMatter(matterId: string) {
+    return this.request<MatterResponse>(`/api/case/${matterId}`)
+  }
+
+  async getCaseTimeline(matterId: string, limit: number = 20) {
+    return this.request<TimelineEventResponse[]>(`/api/case/${matterId}/timeline?limit=${limit}`)
+  }
+
+  async getCaseConfirmations(matterId: string) {
+    return this.request<ConfirmationResponse[]>(`/api/case/${matterId}/confirmations`)
+  }
+
+  async respondToConfirmation(matterId: string, confirmationId: string, confirmed: boolean) {
+    return this.request<{ success: boolean }>(
+      `/api/case/${matterId}/confirm/${confirmationId}`,
+      { method: 'POST', body: { confirmed } }
+    )
+  }
+
+  async getChatHistory(matterId: string) {
+    return this.request<ChatMessage[]>(`/api/case/${matterId}/chat/history`)
+  }
+
+  async sendChatMessage(matterId: string, messages: Array<{ role: string; content: string }>) {
+    // Note: This endpoint streams SSE. For mobile, we do a simple POST and parse the final result.
+    return this.request<{ role: string; content: string }>(
+      `/api/case/${matterId}/chat`,
+      { method: 'POST', body: { messages }, timeout: 30000 }
+    )
+  }
+
+  async uploadVoiceNote(matterId: string, mediaUrl: string, transcription: string, duration: number) {
+    return this.request<EpisodeResponse>(
+      `/api/case/${matterId}/episodes/voice`,
+      { method: 'POST', body: { mediaUrl, transcription, duration } }
+    )
+  }
+
+  async uploadPhoto(matterId: string, mediaUrl: string, exif: Record<string, unknown>) {
+    return this.request<EpisodeResponse>(
+      `/api/case/${matterId}/episodes/photo`,
+      { method: 'POST', body: { mediaUrl, exif } }
+    )
+  }
+
+  async getNearbyProviders(lat: number, lng: number, radius: number = 5000) {
+    return this.request<ProviderResponse[]>(
+      `/api/case/providers/nearby?lat=${lat}&lng=${lng}&radius=${radius}`
+    )
+  }
+
+  /** Get the base URL for direct fetch() calls (e.g., multipart uploads) */
+  getBaseUrl(): string {
+    return this.baseUrl
+  }
 }
 
 // Types used by the API client
@@ -215,6 +277,61 @@ export interface OcrResult {
   data: Partial<CrashDetail> | null
   confidence: number
   rawText: string | null
+}
+
+// Case Memory types
+export interface MatterResponse {
+  id: string
+  clientName: string | null
+  status: string
+  accidentDate: string | null
+  stateCode: string | null
+  statuteDeadline: string | null
+  lastActivityAt: string
+}
+
+export interface TimelineEventResponse {
+  id: string
+  category: string
+  title: string
+  description: string | null
+  occurredAt: string
+  duration: number | null
+  isGap: boolean
+  gapDays: number | null
+}
+
+export interface ConfirmationResponse {
+  id: string
+  prompt: string
+  confirmed: boolean | null
+  sentAt: string
+  episodeId: string | null
+  factId: string | null
+  entityId: string | null
+}
+
+export interface ChatMessage {
+  id: string
+  role: 'user' | 'assistant' | 'system'
+  content: string
+  timestamp: string
+}
+
+export interface EpisodeResponse {
+  id: string
+  type: string
+  title: string | null
+  occurredAt: string
+}
+
+export interface ProviderResponse {
+  id: string
+  name: string
+  type: string
+  latitude: number
+  longitude: number
+  geofenceRadius: number
 }
 
 // Singleton instance

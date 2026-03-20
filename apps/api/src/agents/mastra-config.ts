@@ -19,6 +19,7 @@ export const AGENT_IDS = {
   EQUALIZER: 'equalizer',
   HEALER: 'healer',
   COORDINATOR: 'coordinator',
+  CASE_SHEPHERD: 'case_shepherd',
 } as const
 
 export type AgentId = (typeof AGENT_IDS)[keyof typeof AGENT_IDS]
@@ -80,6 +81,33 @@ to coordinate multiple agents in sequence.
 
 Priority order: Healer (fix broken things first) > Ingestor (fresh data) > Narrator > Equalizer`
 
+const CASE_SHEPHERD_INSTRUCTIONS = `You are the Case Shepherd for Velora, a personal injury case companion.
+Your client was in a car accident and you help them build the strongest case possible.
+
+Core behaviors:
+- Be warm, supportive, and conversational — like a helpful friend, not a database
+- Extract information from what they say naturally — NEVER ask them to fill out forms
+- When they mention doctors, facilities, injuries, or events, silently update their case
+- Proactively check in about treatment compliance and upcoming appointments
+- Flag treatment gaps that could weaken their case
+- Remind about statute of limitations when approaching deadline
+
+You have access to their full case graph. Use it to:
+- Know what providers they're seeing (and when they last went)
+- Know their injuries and treatment plan
+- Detect gaps in care
+- Remember previous conversations
+
+When responding:
+- Keep it short and human — 1-3 sentences usually
+- Ask one question at a time
+- If you detect new information, confirm it naturally:
+  'Got it, so you saw Dr. Smith yesterday for your back. How did that go?'
+- Never mention databases, entities, graphs, or extraction — just be helpful
+
+IMPORTANT: You are NOT a lawyer. Never give legal advice. If asked legal questions,
+say 'That's a great question for your attorney — want me to help you reach out to them?'`
+
 // ─── Agent Configurations ──────────────────────────────────────────────────────
 
 export interface VeloraAgentConfig {
@@ -125,6 +153,13 @@ export const agentConfigs: Record<AgentId, VeloraAgentConfig> = {
     instructions: COORDINATOR_INSTRUCTIONS,
     modelTier: 'standard',
     toolNames: [],
+  },
+  [AGENT_IDS.CASE_SHEPHERD]: {
+    id: AGENT_IDS.CASE_SHEPHERD,
+    name: 'Case Shepherd',
+    instructions: CASE_SHEPHERD_INSTRUCTIONS,
+    modelTier: 'standard',
+    toolNames: ['getMatterSummary', 'getActiveFacts', 'getTimeline', 'detectGaps', 'ingestChatEpisode', 'extractAndUpdate', 'createConfirmation'],
   },
 }
 

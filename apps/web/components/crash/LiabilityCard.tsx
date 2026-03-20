@@ -1,6 +1,7 @@
 'use client'
 
 import { cn } from '@/lib/utils'
+import { displayName } from '@velora/shared'
 
 interface LiabilityCardProps {
   signal: {
@@ -28,7 +29,7 @@ export function LiabilityCard({ signal, className }: LiabilityCardProps) {
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <h4 className="text-sm font-semibold text-gray-900">
-            {signal.rule.replace(/_/g, ' ')}
+            {displayName(signal.rule)}
           </h4>
           <p className="mt-1 text-sm text-gray-600">{signal.explanation}</p>
         </div>

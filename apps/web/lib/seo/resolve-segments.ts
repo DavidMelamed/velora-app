@@ -129,12 +129,12 @@ function isCrashAttribute(segment: string): segment is CrashAttribute {
  * Returns null if the URL doesn't match any known pattern.
  */
 export function resolveSegments(segments: string[]): ResolvedSegments | null {
-  // Must start with "crashes" prefix
-  if (segments.length === 0 || segments[0] !== 'crashes') {
+  if (segments.length === 0) {
     return null
   }
 
-  const parts = segments.slice(1)
+  // Support both /crashes/colorado and /colorado (catch-all route provides segments without prefix)
+  const parts = segments[0] === 'crashes' ? segments.slice(1) : segments
 
   if (parts.length === 0) {
     return null

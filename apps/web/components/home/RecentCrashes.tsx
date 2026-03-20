@@ -1,4 +1,5 @@
 import { prisma } from '@velora/db'
+import { displayName } from '@velora/shared'
 
 export async function RecentCrashes() {
   let crashes: Array<{
@@ -52,7 +53,7 @@ export async function RecentCrashes() {
             </div>
             {crash.crashSeverity && (
               <div className="mt-1 text-xs text-gray-400">
-                {crash.crashSeverity.replace(/_/g, ' ').toLowerCase()}
+                {displayName(crash.crashSeverity).toLowerCase()}
               </div>
             )}
           </a>

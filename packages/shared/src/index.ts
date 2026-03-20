@@ -62,3 +62,29 @@ export {
   BodyTypeCategory,
   GeoEntityType,
 } from './constants/mmucc-enums';
+
+// Case Memory System
+export type {
+  MatterSummary,
+  EpisodeSummary,
+  CaseEntitySummary,
+  CaseFactSummary,
+  TimelineEvent,
+  ConfirmationCard,
+  MatterCreateInput,
+  EpisodeCreateInput,
+  ConfirmationResponse,
+  TimelineFilter,
+  CaseSearchQuery,
+  ProviderSummary,
+} from './types/case';
+
+export {
+  MatterStatus,
+  EpisodeType,
+  CaseEntityType,
+  FactStatus,
+} from './types/case';
+
+// Utilities
+export { displayName } from './utils/display-names';

@@ -1,6 +1,8 @@
 import { heartbeatChecks, type HeartbeatCheckResult } from './checklist'
 import { isCircuitOpen, recordFailure, recordSuccess, getAllCircuitStates } from './circuit-breaker'
 import { logAgentAction } from '../../agents/memory/session-records'
+import { expireStaleConfirmations } from '../case/confirmation'
+import { runCheckins } from '../case/shepherd-checkin'
 
 /**
  * Heartbeat Runner — Executes all health checks, dispatches to agents
@@ -98,6 +100,21 @@ export async function runHeartbeat(options: { dryRun?: boolean } = {}): Promise<
   const durationMs = Date.now() - startTime
   const passed = results.filter((r) => r.passed).length
   const failed = results.filter((r) => !r.passed).length - skipped
+
+  // Run case memory maintenance tasks
+  try {
+    const expired = await expireStaleConfirmations()
+    if (expired > 0) console.log(`[Heartbeat] Expired ${expired} stale confirmations`)
+  } catch (err) {
+    console.warn('[Heartbeat] Confirmation expiry failed:', err instanceof Error ? err.message : err)
+  }
+
+  try {
+    const checkins = await runCheckins()
+    if (checkins.triggered > 0) console.log(`[Heartbeat] Sent ${checkins.triggered} check-ins (${checkins.checked} matters checked)`)
+  } catch (err) {
+    console.warn('[Heartbeat] Check-in run failed:', err instanceof Error ? err.message : err)
+  }
 
   // Log the overall heartbeat run
   await logAgentAction({
