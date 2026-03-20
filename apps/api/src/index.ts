@@ -13,7 +13,9 @@ import pipelineRoutes from './routes/pipeline'
 import learningMetricsRoutes from './routes/admin/learning-metrics'
 import vectorSearchRoutes from './routes/vector-search'
 import caseRoutes from './routes/case'
+import caseExtrasRoutes from './routes/case-extras'
 import leadRoutes from './routes/leads'
+import { join } from 'path'
 
 const app = express()
 const PORT = process.env.PORT || 4000
@@ -24,7 +26,10 @@ app.set('trust proxy', 1)
 // Middleware
 app.use(helmet())
 app.use(cors({ origin: process.env.CORS_ORIGINS?.split(',') || ['http://localhost:3000'] }))
-app.use(express.json({ limit: '10mb' }))
+app.use(express.json({ limit: '50mb' })) // Increased for base64 audio/image uploads
+
+// Serve uploaded files in development
+app.use('/uploads', express.static(join(process.cwd(), 'uploads')))
 
 // Routes
 app.use('/health', healthRoutes)
@@ -37,6 +42,7 @@ app.use('/api/pipeline', authLimiter, pipelineRoutes)
 app.use('/api/admin/learning', authLimiter, learningMetricsRoutes)
 app.use('/api/vector-search', readLimiter, vectorSearchRoutes)
 app.use('/api/case', writeLimiter, caseRoutes)
+app.use('/api/case', writeLimiter, caseExtrasRoutes)
 app.use('/api/leads', writeLimiter, leadRoutes)
 
 // Error handler (must be last)

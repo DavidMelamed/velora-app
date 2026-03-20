@@ -996,6 +996,19 @@ model Provider {
   @@index([stateCode])
 }
 
+model ExtractionDeadLetter {
+  id         String   @id @default(cuid())
+  episodeId  String
+  matterId   String
+  error      String
+  attempts   Int      @default(0)
+  resolvedAt DateTime?
+  createdAt  DateTime @default(now())
+
+  @@index([matterId])
+  @@index([resolvedAt])
+}
+
 // ╔══════════════════════════════════════════════════╗
 // ║  COMMERCIAL: Lead Generation & Email Capture     ║
 // ╚══════════════════════════════════════════════════╝

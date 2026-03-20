@@ -167,18 +167,37 @@ class VeloraApiClient {
   }
 
   async sendChatMessage(matterId: string, messages: Array<{ role: string; content: string }>) {
-    // Note: This endpoint streams SSE. For mobile, we do a simple POST and parse the final result.
+    // Uses the non-streaming endpoint designed for mobile
     return this.request<{ role: string; content: string }>(
-      `/api/case/${matterId}/chat`,
+      `/api/case/${matterId}/chat/simple`,
       { method: 'POST', body: { messages }, timeout: 30000 }
     )
   }
 
-  async uploadVoiceNote(matterId: string, mediaUrl: string, transcription: string, duration: number) {
-    return this.request<EpisodeResponse>(
-      `/api/case/${matterId}/episodes/voice`,
-      { method: 'POST', body: { mediaUrl, transcription, duration } }
+  async uploadVoiceNote(matterId: string, audioBase64: string, mimeType: string = 'audio/m4a') {
+    // Uses the upload+transcribe endpoint (handles storage + transcription server-side)
+    return this.request<{ episodeId: string; mediaUrl: string; transcription: string; duration: number }>(
+      `/api/case/${matterId}/upload/voice`,
+      { method: 'POST', body: { audio: audioBase64, mimeType }, timeout: 60000 }
     )
+  }
+
+  async uploadPhoto(matterId: string, imageBase64: string, mimeType: string = 'image/jpeg', exif?: Record<string, unknown>) {
+    return this.request<{ episodeId: string; mediaUrl: string }>(
+      `/api/case/${matterId}/upload/photo`,
+      { method: 'POST', body: { image: imageBase64, mimeType, exif } }
+    )
+  }
+
+  async generateShareLink(matterId: string) {
+    return this.request<{ shareUrl: string; token: string; expiresAt: string }>(
+      `/api/case/${matterId}/share`,
+      { method: 'POST' }
+    )
+  }
+
+  async exportCaseHTML(matterId: string) {
+    return this.request<string>(`/api/case/${matterId}/export/pdf`)
   }
 
   async uploadPhoto(matterId: string, mediaUrl: string, exif: Record<string, unknown>) {

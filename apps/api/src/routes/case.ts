@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import { streamText } from 'ai'
+import { z } from 'zod'
 import { prisma } from '@velora/db'
 import { getModel } from '@velora/ai'
 import { createMatter, getMatter, updateMatterStatus, linkCrashToMatter } from '../services/case/matter'
@@ -11,6 +12,79 @@ import { agentConfigs, AGENT_IDS } from '../agents/mastra-config'
 import { EpisodeType } from '@velora/shared'
 import type { MatterCreateInput, EpisodeCreateInput, TimelineFilter } from '@velora/shared'
 import { requireAuth, optionalAuth, type AuthenticatedRequest } from '../middleware/auth'
+
+// ─── Zod Validation Schemas ─────────────────────────
+
+const createMatterSchema = z.object({
+  crashId: z.string().optional(),
+  accidentDate: z.string().optional(),
+  stateCode: z.string().length(2).optional(),
+  clientName: z.string().optional(),
+  clientPhone: z.string().optional(),
+  clientEmail: z.string().email().optional(),
+  userId: z.string().optional(),
+})
+
+const updateStatusSchema = z.object({
+  status: z.enum(['INTAKE', 'ACTIVE', 'TREATING', 'DEMAND_PREP', 'LITIGATION', 'SETTLED', 'CLOSED']),
+})
+
+const linkCrashSchema = z.object({
+  crashId: z.string().min(1, 'crashId is required'),
+})
+
+const episodeCreateSchema = z.object({
+  type: z.enum([
+    'CALL_TRANSCRIPT', 'CHAT_MESSAGE', 'VOICE_NOTE', 'LOCATION_VISIT',
+    'PHOTO', 'DOCUMENT', 'EMAIL_EXTRACT', 'SYSTEM_EVENT', 'CONFIRMATION_RESPONSE',
+  ]),
+  textContent: z.string().optional(),
+  mediaUrl: z.string().url().optional(),
+  mediaType: z.string().optional(),
+  metadata: z.record(z.unknown()).optional(),
+  latitude: z.number().optional(),
+  longitude: z.number().optional(),
+  locationName: z.string().optional(),
+  occurredAt: z.string(),
+  duration: z.number().optional(),
+  title: z.string().optional(),
+})
+
+const voiceNoteSchema = z.object({
+  mediaUrl: z.string().url(),
+  transcription: z.string(),
+  duration: z.number().positive(),
+})
+
+const photoSchema = z.object({
+  mediaUrl: z.string().url(),
+  exif: z.record(z.unknown()).optional().default({}),
+})
+
+const visitSchema = z.object({
+  latitude: z.number().min(-90).max(90),
+  longitude: z.number().min(-180).max(180),
+  enteredAt: z.string(),
+  exitedAt: z.string(),
+  locationName: z.string().optional(),
+  providerName: z.string().optional(),
+})
+
+const confirmationSchema = z.object({
+  confirmed: z.boolean(),
+})
+
+const chatSchema = z.object({
+  messages: z.array(z.object({
+    role: z.enum(['user', 'assistant']),
+    content: z.string(),
+  })).min(1, 'At least one message is required'),
+})
+
+const paginationQuery = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+})
 
 const router = Router()
 
@@ -48,7 +122,12 @@ router.get('/me', requireAuth, async (req: AuthenticatedRequest, res) => {
 // POST /api/case — Create matter
 router.post('/', requireAuth, async (req: AuthenticatedRequest, res) => {
   try {
-    const input = req.body as MatterCreateInput
+    const parsed = createMatterSchema.safeParse(req.body)
+    if (!parsed.success) {
+      res.status(400).json({ error: 'Validation failed', details: parsed.error.flatten() })
+      return
+    }
+    const input = parsed.data
     const matter = await prisma.matter.create({
       data: {
         userId: req.userId ?? null,
@@ -86,7 +165,12 @@ router.get('/:id', optionalAuth, async (req, res) => {
 // PATCH /api/case/:id/status — Update status
 router.patch('/:id/status', async (req, res) => {
   try {
-    const { status } = req.body as { status: string }
+    const parsed = updateStatusSchema.safeParse(req.body)
+    if (!parsed.success) {
+      res.status(400).json({ error: 'Validation failed', details: parsed.error.flatten() })
+      return
+    }
+    const { status } = parsed.data
     const matter = await updateMatterStatus(req.params.id, status as import('@velora/db').MatterStatus)
     res.json(matter)
   } catch (error) {
@@ -98,7 +182,12 @@ router.patch('/:id/status', async (req, res) => {
 // POST /api/case/:id/link-crash — Link crash to matter
 router.post('/:id/link-crash', async (req, res) => {
   try {
-    const { crashId } = req.body as { crashId: string }
+    const parsed = linkCrashSchema.safeParse(req.body)
+    if (!parsed.success) {
+      res.status(400).json({ error: 'Validation failed', details: parsed.error.flatten() })
+      return
+    }
+    const { crashId } = parsed.data
     const matter = await linkCrashToMatter(req.params.id, crashId)
     res.json(matter)
   } catch (error) {
@@ -112,7 +201,12 @@ router.post('/:id/link-crash', async (req, res) => {
 // POST /api/case/:id/episodes — Ingest episode
 router.post('/:id/episodes', async (req, res) => {
   try {
-    const input = req.body as EpisodeCreateInput
+    const parsed = episodeCreateSchema.safeParse(req.body)
+    if (!parsed.success) {
+      res.status(400).json({ error: 'Validation failed', details: parsed.error.flatten() })
+      return
+    }
+    const input = parsed.data as EpisodeCreateInput
     const episode = await ingestEpisode(req.params.id, input)
     res.status(201).json(episode)
   } catch (error) {
@@ -169,11 +263,12 @@ router.get('/:id/episodes/:episodeId', async (req, res) => {
 // POST /api/case/:id/episodes/voice — Voice note
 router.post('/:id/episodes/voice', async (req, res) => {
   try {
-    const { mediaUrl, transcription, duration } = req.body as {
-      mediaUrl: string
-      transcription: string
-      duration: number
+    const parsed = voiceNoteSchema.safeParse(req.body)
+    if (!parsed.success) {
+      res.status(400).json({ error: 'Validation failed', details: parsed.error.flatten() })
+      return
     }
+    const { mediaUrl, transcription, duration } = parsed.data
     const episode = await ingestVoiceNote(req.params.id, mediaUrl, transcription, duration)
     res.status(201).json(episode)
   } catch (error) {
@@ -185,11 +280,13 @@ router.post('/:id/episodes/voice', async (req, res) => {
 // POST /api/case/:id/episodes/photo — Photo evidence
 router.post('/:id/episodes/photo', async (req, res) => {
   try {
-    const { mediaUrl, exif } = req.body as {
-      mediaUrl: string
-      exif: Record<string, unknown>
+    const parsed = photoSchema.safeParse(req.body)
+    if (!parsed.success) {
+      res.status(400).json({ error: 'Validation failed', details: parsed.error.flatten() })
+      return
     }
-    const episode = await ingestPhoto(req.params.id, mediaUrl, exif || {})
+    const { mediaUrl, exif } = parsed.data
+    const episode = await ingestPhoto(req.params.id, mediaUrl, exif)
     res.status(201).json(episode)
   } catch (error) {
     console.error('Error ingesting photo:', error)
@@ -200,7 +297,12 @@ router.post('/:id/episodes/photo', async (req, res) => {
 // POST /api/case/:id/episodes/visit — Location visit
 router.post('/:id/episodes/visit', async (req, res) => {
   try {
-    const episode = await ingestLocationVisit(req.params.id, req.body)
+    const parsed = visitSchema.safeParse(req.body)
+    if (!parsed.success) {
+      res.status(400).json({ error: 'Validation failed', details: parsed.error.flatten() })
+      return
+    }
+    const episode = await ingestLocationVisit(req.params.id, parsed.data)
     res.status(201).json(episode)
   } catch (error) {
     console.error('Error ingesting visit:', error)
@@ -242,16 +344,22 @@ router.get('/:id/timeline', async (req, res) => {
 // GET /api/case/:id/entities — Case entities
 router.get('/:id/entities', async (req, res) => {
   try {
+    const { page, limit } = paginationQuery.parse(req.query)
     const type = req.query.type as string | undefined
     const where: Record<string, unknown> = { matterId: req.params.id }
     if (type) where.type = type
 
-    const entities = await prisma.caseEntity.findMany({
-      where,
-      orderBy: { confidence: 'desc' },
-    })
+    const [data, total] = await Promise.all([
+      prisma.caseEntity.findMany({
+        where,
+        skip: (page - 1) * limit,
+        take: limit,
+        orderBy: { confidence: 'desc' },
+      }),
+      prisma.caseEntity.count({ where }),
+    ])
 
-    res.json(entities)
+    res.json({ data, total, page, limit })
   } catch (error) {
     console.error('Error getting entities:', error)
     res.status(500).json({ error: 'Failed to get entities' })
@@ -263,6 +371,7 @@ router.get('/:id/entities', async (req, res) => {
 // GET /api/case/:id/facts — Active facts
 router.get('/:id/facts', async (req, res) => {
   try {
+    const { page, limit } = paginationQuery.parse(req.query)
     const predicate = req.query.predicate as string | undefined
     const asOf = req.query.asOf ? new Date(req.query.asOf as string) : new Date()
 
@@ -277,12 +386,17 @@ router.get('/:id/facts', async (req, res) => {
     }
     if (predicate) where.predicate = predicate
 
-    const facts = await prisma.caseFact.findMany({
-      where,
-      orderBy: { validFrom: 'desc' },
-    })
+    const [data, total] = await Promise.all([
+      prisma.caseFact.findMany({
+        where,
+        skip: (page - 1) * limit,
+        take: limit,
+        orderBy: { validFrom: 'desc' },
+      }),
+      prisma.caseFact.count({ where }),
+    ])
 
-    res.json(facts)
+    res.json({ data, total, page, limit })
   } catch (error) {
     console.error('Error getting facts:', error)
     res.status(500).json({ error: 'Failed to get facts' })
@@ -294,7 +408,12 @@ router.get('/:id/facts', async (req, res) => {
 // POST /api/case/:id/confirm/:confirmationId — Respond to confirmation
 router.post('/:id/confirm/:confirmationId', async (req, res) => {
   try {
-    const { confirmed } = req.body as { confirmed: boolean }
+    const parsed = confirmationSchema.safeParse(req.body)
+    if (!parsed.success) {
+      res.status(400).json({ error: 'Validation failed', details: parsed.error.flatten() })
+      return
+    }
+    const { confirmed } = parsed.data
 
     const confirmation = await prisma.confirmation.findUnique({
       where: { id: req.params.confirmationId },
@@ -316,19 +435,27 @@ router.post('/:id/confirm/:confirmationId', async (req, res) => {
 // GET /api/case/:id/confirmations — Pending confirmations
 router.get('/:id/confirmations', async (req, res) => {
   try {
-    const confirmations = await prisma.confirmation.findMany({
-      where: {
-        matterId: req.params.id,
-        confirmed: null,
-        OR: [
-          { expiresAt: null },
-          { expiresAt: { gt: new Date() } },
-        ],
-      },
-      orderBy: { sentAt: 'desc' },
-    })
+    const { page, limit } = paginationQuery.parse(req.query)
+    const where = {
+      matterId: req.params.id,
+      confirmed: null as null,
+      OR: [
+        { expiresAt: null },
+        { expiresAt: { gt: new Date() } },
+      ],
+    }
 
-    res.json(confirmations)
+    const [data, total] = await Promise.all([
+      prisma.confirmation.findMany({
+        where,
+        skip: (page - 1) * limit,
+        take: limit,
+        orderBy: { sentAt: 'desc' },
+      }),
+      prisma.confirmation.count({ where }),
+    ])
+
+    res.json({ data, total, page, limit })
   } catch (error) {
     console.error('Error getting confirmations:', error)
     res.status(500).json({ error: 'Failed to get confirmations' })
@@ -373,9 +500,12 @@ router.get('/providers/nearby', async (req, res) => {
 // POST /api/case/:id/chat — Send message to Case Shepherd (streaming SSE)
 router.post('/:id/chat', async (req, res) => {
   try {
-    const { messages } = req.body as {
-      messages: Array<{ role: 'user' | 'assistant'; content: string }>
+    const parsed = chatSchema.safeParse(req.body)
+    if (!parsed.success) {
+      res.status(400).json({ error: 'Validation failed', details: parsed.error.flatten() })
+      return
     }
+    const { messages } = parsed.data
     const matterId = req.params.id
 
     // Load matter context for system prompt

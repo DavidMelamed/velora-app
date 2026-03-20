@@ -2,6 +2,18 @@ import { prisma } from '@velora/db'
 import type { CaseEntityType as PrismaCaseEntityType } from '@velora/db'
 import { extractEntities } from '@velora/ai'
 
+async function withRetry<T>(fn: () => Promise<T>, maxAttempts = 3): Promise<T> {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await fn()
+    } catch (error) {
+      if (attempt === maxAttempts) throw error
+      await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempt - 1)))
+    }
+  }
+  throw new Error('Unreachable')
+}
+
 /**
  * Process entity extraction on an episode's text content.
  * Creates/updates CaseEntity and CaseFact records.
@@ -26,7 +38,21 @@ export async function processEpisodeExtraction(episodeId: string): Promise<void>
   }
 
   const knownEntities = episode.matter.entities.map((e) => e.name)
-  const result = await extractEntities(episode.textContent, { knownEntities })
+
+  let result: Awaited<ReturnType<typeof extractEntities>>
+  try {
+    result = await withRetry(() => extractEntities(episode.textContent!, { knownEntities }))
+  } catch (error) {
+    await prisma.extractionDeadLetter.create({
+      data: {
+        episodeId,
+        matterId: episode.matterId,
+        error: error instanceof Error ? error.message : String(error),
+        attempts: 3,
+      },
+    })
+    throw error
+  }
 
   // Process extracted entities
   for (const extracted of result.entities) {
@@ -146,8 +172,11 @@ export async function processEpisodeExtraction(episodeId: string): Promise<void>
 
 /**
  * Process all unextracted episodes for a matter.
+ * Returns an object with the count of successfully processed episodes and any failed episode IDs.
  */
-export async function processUnextractedEpisodes(matterId: string): Promise<number> {
+export async function processUnextractedEpisodes(
+  matterId: string
+): Promise<{ processed: number; failedEpisodeIds: string[] }> {
   const episodes = await prisma.episode.findMany({
     where: {
       matterId,
@@ -158,14 +187,16 @@ export async function processUnextractedEpisodes(matterId: string): Promise<numb
   })
 
   let processed = 0
+  const failedEpisodeIds: string[] = []
   for (const episode of episodes) {
     try {
       await processEpisodeExtraction(episode.id)
       processed++
     } catch (error) {
       console.error(`Failed to extract from episode ${episode.id}:`, error)
+      failedEpisodeIds.push(episode.id)
     }
   }
 
-  return processed
+  return { processed, failedEpisodeIds }
 }

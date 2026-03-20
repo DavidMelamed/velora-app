@@ -88,22 +88,40 @@ export async function buildTimeline(
     })
   }
 
-  // Upsert timeline entries (use episodeId as dedup key)
+  // Load all existing timeline entries for this matter in one query
+  const existingTimelines = await prisma.caseTimeline.findMany({
+    where: { matterId },
+    select: { id: true, episodeId: true },
+  })
+  const episodeToTimelineId = new Map<string, string>()
+  for (const t of existingTimelines) {
+    if (t.episodeId) episodeToTimelineId.set(t.episodeId, t.id)
+  }
+
+  // Separate entries into creates and updates
+  const creates: typeof entries = []
+  const updates: Array<{ id: string; title: string; description: string | null; category: string }> = []
+
   for (const entry of entries) {
     if (!entry.episodeId) continue
 
-    const existingId = await findTimelineByEpisode(matterId, entry.episodeId)
+    const existingId = episodeToTimelineId.get(entry.episodeId)
     if (existingId) {
-      await prisma.caseTimeline.update({
-        where: { id: existingId },
-        data: {
-          title: entry.title,
-          description: entry.description,
-          category: entry.category,
-        },
+      updates.push({
+        id: existingId,
+        title: entry.title,
+        description: entry.description,
+        category: entry.category,
       })
     } else {
-      await prisma.caseTimeline.create({
+      creates.push(entry)
+    }
+  }
+
+  // Batch creates and updates in a single transaction
+  await prisma.$transaction([
+    ...creates.map((entry) =>
+      prisma.caseTimeline.create({
         data: {
           matterId: entry.matterId,
           category: entry.category,
@@ -114,8 +132,18 @@ export async function buildTimeline(
           episodeId: entry.episodeId,
         },
       })
-    }
-  }
+    ),
+    ...updates.map((u) =>
+      prisma.caseTimeline.update({
+        where: { id: u.id },
+        data: {
+          title: u.title,
+          description: u.description,
+          category: u.category,
+        },
+      })
+    ),
+  ])
 
   // Return built timeline
   const timelineWhere: Record<string, unknown> = { matterId }
@@ -134,13 +162,3 @@ export async function buildTimeline(
   })
 }
 
-async function findTimelineByEpisode(
-  matterId: string,
-  episodeId: string
-): Promise<string | null> {
-  const existing = await prisma.caseTimeline.findFirst({
-    where: { matterId, episodeId },
-    select: { id: true },
-  })
-  return existing?.id ?? null
-}
