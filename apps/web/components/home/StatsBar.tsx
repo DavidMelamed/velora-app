@@ -1,8 +1,10 @@
 import { prisma } from '@velora/db'
+import { displayName } from '@velora/shared'
 
 interface StatItem {
   label: string
   value: string
+  subtitle?: string
 }
 
 export async function StatsBar() {
@@ -16,26 +18,33 @@ export async function StatsBar() {
     ])
 
     stats = [
-      { label: 'Crashes Indexed', value: crashCount.toLocaleString() },
-      { label: 'States Covered', value: stateCount.toString() },
-      { label: 'Attorneys Indexed', value: attorneyCount.toLocaleString() },
+      { label: 'Crashes Indexed', value: crashCount.toLocaleString(), subtitle: 'Public records' },
+      { label: 'States Covered', value: stateCount.toString(), subtitle: 'And growing' },
+      { label: 'Attorneys Indexed', value: attorneyCount.toLocaleString(), subtitle: 'Ranked by AI' },
     ]
   } catch {
-    // Fallback stats when DB is unavailable
     stats = [
-      { label: 'Crashes Indexed', value: '---' },
-      { label: 'States Covered', value: '51' },
-      { label: 'Attorneys Indexed', value: '---' },
+      { label: 'Crashes Indexed', value: '---', subtitle: 'Public records' },
+      { label: 'States Covered', value: '51', subtitle: 'And growing' },
+      { label: 'Attorneys Indexed', value: '---', subtitle: 'Ranked by AI' },
     ]
   }
 
   return (
-    <section className="border-y border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-900">
-      <div className="mx-auto flex max-w-4xl items-center justify-around px-4 py-8">
+    <section className="mx-auto max-w-4xl px-6 py-4">
+      <div className="grid gap-4 sm:grid-cols-3">
         {stats.map((stat) => (
-          <div key={stat.label} className="text-center">
-            <div className="text-3xl font-bold text-blue-600 dark:text-blue-400">{stat.value}</div>
-            <div className="mt-1 text-sm text-gray-500 dark:text-gray-400">{stat.label}</div>
+          <div
+            key={stat.label}
+            className="rounded-2xl border border-gray-200/80 bg-white px-6 py-5 text-center transition-colors hover:border-gray-300 dark:border-gray-800 dark:bg-gray-900 dark:hover:border-gray-700"
+          >
+            <div className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white">
+              {stat.value}
+            </div>
+            <div className="mt-1 text-sm font-medium text-gray-600 dark:text-gray-400">{stat.label}</div>
+            {stat.subtitle && (
+              <div className="mt-0.5 text-xs text-gray-400 dark:text-gray-500">{stat.subtitle}</div>
+            )}
           </div>
         ))}
       </div>
