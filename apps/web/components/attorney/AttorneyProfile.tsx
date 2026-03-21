@@ -106,14 +106,19 @@ export function AttorneyProfile({
                 Client Reviews
               </h2>
               <div className="space-y-3">
-                {bestQuotes.map((quote, i) => (
-                  <blockquote
-                    key={i}
-                    className="rounded-lg border-l-4 border-blue-500 bg-gray-50 p-4 text-sm italic text-gray-700 dark:bg-gray-800 dark:text-gray-300"
-                  >
-                    &ldquo;{quote}&rdquo;
-                  </blockquote>
-                ))}
+                {bestQuotes.map((quote, i) => {
+                  // Defensive: handle both string and {text} object formats
+                  const text = typeof quote === 'string' ? quote : (quote as unknown as { text?: string })?.text ?? ''
+                  if (!text) return null
+                  return (
+                    <blockquote
+                      key={i}
+                      className="rounded-lg border-l-4 border-blue-500 bg-gray-50 p-4 text-sm italic text-gray-700 dark:bg-gray-800 dark:text-gray-300"
+                    >
+                      &ldquo;{text}&rdquo;
+                    </blockquote>
+                  )
+                })}
               </div>
             </section>
           )}
