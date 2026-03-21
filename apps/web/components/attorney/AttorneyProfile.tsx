@@ -35,8 +35,13 @@ export function AttorneyProfile({
 }: AttorneyProfileProps) {
   const location = [attorney.city, attorney.stateCode].filter(Boolean).join(', ')
 
+  // Normalize bestQuotes in case RSC passes raw objects
+  const normalizedQuotes = (bestQuotes || []).map((q: unknown) =>
+    typeof q === 'string' ? q : (q as { text?: string })?.text ?? ''
+  ).filter(Boolean)
+
   return (
-    <div className="mx-auto max-w-5xl px-4 py-8">
+    <div className="mx-auto max-w-5xl px-4 py-8" data-v="2">
       {/* Header */}
       <header className="mb-8">
         <nav className="mb-4 text-sm text-gray-500">
@@ -100,25 +105,20 @@ export function AttorneyProfile({
           {dimensions && <ReviewDimensions scores={dimensions} />}
 
           {/* Best Quotes */}
-          {bestQuotes && bestQuotes.length > 0 && (
+          {normalizedQuotes.length > 0 && (
             <section>
               <h2 className="mb-3 text-lg font-semibold text-gray-900 dark:text-white">
                 Client Reviews
               </h2>
               <div className="space-y-3">
-                {bestQuotes.map((quote, i) => {
-                  // Defensive: handle both string and {text} object formats
-                  const text = typeof quote === 'string' ? quote : (quote as unknown as { text?: string })?.text ?? ''
-                  if (!text) return null
-                  return (
-                    <blockquote
-                      key={i}
-                      className="rounded-lg border-l-4 border-blue-500 bg-gray-50 p-4 text-sm italic text-gray-700 dark:bg-gray-800 dark:text-gray-300"
-                    >
-                      &ldquo;{text}&rdquo;
-                    </blockquote>
-                  )
-                })}
+                {normalizedQuotes.map((text: string, i: number) => (
+                  <blockquote
+                    key={i}
+                    className="rounded-lg border-l-4 border-blue-500 bg-gray-50 p-4 text-sm italic text-gray-700 dark:bg-gray-800 dark:text-gray-300"
+                  >
+                    &ldquo;{text}&rdquo;
+                  </blockquote>
+                ))}
               </div>
             </section>
           )}
