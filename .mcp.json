@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "velora": {
+      "command": "C:\\repos\\velora-app\\node_modules\\.bin\\tsx.cmd",
+      "args": [
+        "C:\\repos\\velora-app\\apps\\mcp-server\\src\\index.ts"
+      ],
+      "env": {
+        "DATABASE_URL": "postgresql://postgres:UQugCvNBuUxMJDzKQTUYILQdOYriaNyq@tramway.proxy.rlwy.net:28119/railway"
+      },
+      "transportType": "stdio"
+    }
+  }
+}
