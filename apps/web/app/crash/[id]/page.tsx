@@ -11,7 +11,7 @@ import { CrashMap } from '@/components/crash/CrashMap'
 import { CrashEqualizer } from '@/components/crash/CrashEqualizer'
 import { GenerateEqualizerButton } from '@/components/crash/GenerateEqualizerButton'
 import { CopilotProvider } from '@/components/copilot/CopilotProvider'
-import { CrashPageSidebar } from '@/components/copilot/CrashPageSidebar'
+import { SafeCrashPageSidebar } from '@/components/copilot/SafeCrashPageSidebar'
 import { IWasInThisCrash } from '@/components/crash/IWasInThisCrash'
 import { WhatToDoNext } from '@/components/crash/WhatToDoNext'
 import { NarrativeThumbsFeedback } from '@/components/feedback/NarrativeThumbsFeedback'
@@ -259,7 +259,7 @@ export default async function CrashPage({ params }: CrashPageProps) {
         </div>
       </main>
 
-      <CrashPageSidebar crash={crashContext} />
+      <SafeCrashPageSidebar crash={crashContext} />
       <CrashPageFeedbackTracker crashId={crash.id} />
     </CopilotProvider>
   )
