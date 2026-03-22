@@ -8,9 +8,11 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const nextConfig = {
   transpilePackages: ['@velora/ui', '@velora/shared', '@velora/ai'],
   outputFileTracingRoot: path.join(__dirname, '../../'),
+  webpack: (config) => {
+    // Disable persistent filesystem cache to ensure fresh builds
+    config.cache = false
+    return config
+  },
 }
 
 export default withPayload(nextConfig)
-
-
-// Force cache bust - remove after deploy
