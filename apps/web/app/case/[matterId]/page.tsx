@@ -1,4 +1,5 @@
 import TimelineWeb, { type TimelineEvent } from '@/components/case/TimelineWeb'
+import KnowledgeGraph from '@/components/case/KnowledgeGraph'
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
 
@@ -179,12 +180,15 @@ export default async function CasePage({
           </div>
         </aside>
 
-        {/* Center: Timeline */}
-        <main className="min-w-0 flex-1">
+        {/* Center: Timeline + Knowledge Graph */}
+        <main className="min-w-0 flex-1 space-y-6">
           <div className="rounded-lg border border-gray-200 bg-white p-4">
             <h2 className="mb-3 text-sm font-semibold text-gray-700">Case Timeline</h2>
             <TimelineWeb events={timeline ?? []} matterId={matterId} />
           </div>
+
+          {/* Knowledge Graph Explorer */}
+          <KnowledgeGraph matterId={matterId} />
         </main>
 
         {/* Right sidebar: Facts */}

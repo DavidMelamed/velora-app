@@ -223,4 +223,68 @@ export function registerCaseTools(server: McpServer) {
       }
     }
   )
+
+  // ─── get_knowledge_graph ──────────────────────────────
+  registerTool(server,
+    'get_knowledge_graph',
+    'Get the knowledge graph for a case showing entities as nodes and facts as edges. Useful for understanding relationships between people, providers, injuries, and other case elements.',
+    {
+      matterId: z.string().describe('The matter/case ID'),
+      includeEpisodes: z.boolean().optional().default(false).describe('Include episode nodes in the graph'),
+    },
+    async (params) => {
+      const entities = await prisma.caseEntity.findMany({
+        where: { matterId: params.matterId },
+        select: { id: true, type: true, name: true, confidence: true },
+      })
+
+      const facts = await prisma.caseFact.findMany({
+        where: {
+          matterId: params.matterId,
+          status: { in: ['CONFIRMED', 'CANDIDATE'] },
+        },
+        select: {
+          id: true,
+          subject: true,
+          predicate: true,
+          object: true,
+          confidence: true,
+          status: true,
+          validFrom: true,
+          validUntil: true,
+        },
+      })
+
+      return {
+        content: [{
+          type: 'text' as const,
+          text: JSON.stringify({
+            entities: entities.map(e => ({
+              type: e.type,
+              name: e.name,
+              confidence: Math.round(e.confidence * 100) + '%',
+            })),
+            relationships: facts.map(f => ({
+              from: f.subject,
+              relation: f.predicate.replace(/_/g, ' '),
+              to: f.object,
+              confidence: Math.round(f.confidence * 100) + '%',
+              status: f.status,
+              since: f.validFrom,
+              until: f.validUntil,
+            })),
+            summary: {
+              totalEntities: entities.length,
+              totalRelationships: facts.length,
+              entityTypes: Object.fromEntries(
+                Object.entries(
+                  entities.reduce((acc, e) => ({ ...acc, [e.type]: (acc[e.type as keyof typeof acc] || 0) + 1 }), {} as Record<string, number>)
+                )
+              ),
+            },
+          }, null, 2),
+        }],
+      }
+    }
+  )
 }

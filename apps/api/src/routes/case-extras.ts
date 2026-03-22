@@ -5,6 +5,7 @@
  * - PDF export
  * - Case sharing
  * - Redis caching
+ * - Knowledge graph
  */
 
 import { Router } from 'express'
@@ -15,6 +16,7 @@ import { loadCaseChronology, generateChronologyHTML } from '../services/case/pdf
 import { generateShareToken, validateShareToken, getSharedCaseView } from '../services/case/case-sharing'
 import { ingestVoiceNote, ingestPhoto } from '../services/case/episode-ingest'
 import { processEpisodeExtraction } from '../services/case/entity-extractor'
+import { buildKnowledgeGraph } from '../services/case/graph-builder'
 
 const router = Router()
 
@@ -299,6 +301,37 @@ router.post('/:id/chat/simple', async (req, res) => {
   } catch (error) {
     console.error('Error in simple chat:', error)
     res.status(500).json({ error: 'Chat failed' })
+  }
+})
+
+// ─── Knowledge Graph ────────────────────────────────
+
+/**
+ * GET /api/case/:id/graph
+ * Returns the knowledge graph for visualization.
+ * Query params: asOf (ISO date), includeRejected, includeEpisodes
+ */
+router.get('/:id/graph', async (req, res) => {
+  try {
+    const asOf = req.query.asOf ? new Date(req.query.asOf as string) : undefined
+    const includeRejected = req.query.includeRejected === 'true'
+    const includeEpisodes = req.query.includeEpisodes === 'true'
+
+    const graph = await buildKnowledgeGraph(req.params.id, {
+      asOf,
+      includeRejected,
+      includeEpisodes,
+    })
+
+    if (!graph) {
+      res.status(404).json({ error: 'Case not found' })
+      return
+    }
+
+    res.json(graph)
+  } catch (error) {
+    console.error('Error building knowledge graph:', error)
+    res.status(500).json({ error: 'Failed to build graph' })
   }
 })
 
