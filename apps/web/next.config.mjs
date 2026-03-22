@@ -12,3 +12,5 @@ const nextConfig = {
 
 export default withPayload(nextConfig)
 
+
+// Force cache bust - remove after deploy
