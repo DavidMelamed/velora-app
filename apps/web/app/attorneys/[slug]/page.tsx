@@ -57,15 +57,20 @@ export default async function AttorneyPage({ params }: AttorneyPageProps) {
     : null
 
   // bestQuotes may be string[] or {text, rating, dimension, sentiment}[] depending on data source
-  // JSON round-trip to break RSC deduplication references
-  const rawQuotes = attorney.reviewIntelligence?.bestQuotes
-  const bestQuotes: string[] = rawQuotes
-    ? JSON.parse(JSON.stringify(
-        (rawQuotes as unknown[]).map((q) =>
-          typeof q === 'string' ? q : (q as { text?: string })?.text ?? ''
-        ).filter(Boolean)
-      ))
-    : []
+  // JSON round-trip to break RSC deduplication and force plain strings
+  let bestQuotes: string[] = []
+  try {
+    const rawQuotes = attorney.reviewIntelligence?.bestQuotes
+    if (Array.isArray(rawQuotes)) {
+      bestQuotes = rawQuotes.map((q: unknown) =>
+        typeof q === 'string' ? q : typeof q === 'object' && q !== null && 'text' in q ? String((q as Record<string, unknown>).text) : ''
+      ).filter(Boolean)
+      // JSON round-trip to ensure plain serializable strings
+      bestQuotes = JSON.parse(JSON.stringify(bestQuotes))
+    }
+  } catch {
+    bestQuotes = []
+  }
 
   const schemaData = legalServiceSchema({
     name: attorney.name,
