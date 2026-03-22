@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { prisma } from '@velora/db'
-import { AttorneyProfile } from '@/components/attorney/AttorneyProfile'
+import { AttorneyProfile } from '@/components/attorney/AttorneyProfileV2'
 import type { DimensionScores } from '@/components/attorney/ReviewDimensions'
 import { legalServiceSchema, jsonLdScript } from '@/lib/seo/schema-markup'
 
