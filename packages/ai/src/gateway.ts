@@ -14,7 +14,7 @@ interface ProviderConfig {
 const OPENROUTER_MODEL_IDS: Record<ModelTier, string> = {
   premium: process.env.AI_OPENROUTER_PREMIUM_MODEL || 'google/gemini-2.5-pro',
   standard: process.env.AI_OPENROUTER_STANDARD_MODEL || 'google/gemini-2.5-flash',
-  budget: process.env.AI_OPENROUTER_BUDGET_MODEL || 'mistralai/ministral-8b',
+  budget: process.env.AI_OPENROUTER_BUDGET_MODEL || 'google/gemini-2.5-flash-lite',
 }
 
 // Circuit breaker state per provider

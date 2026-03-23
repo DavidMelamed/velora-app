@@ -131,7 +131,7 @@ async function canServeOpenEndedSearch(): Promise<boolean> {
 
   try {
     await generateText({
-      model: getModel('budget'),
+      model: getModel('standard'),
       prompt: 'Reply with the single word OK.',
       maxTokens: 5,
       temperature: 0,
