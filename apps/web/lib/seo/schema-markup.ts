@@ -3,7 +3,9 @@
  * Returns objects ready to be serialized into <script type="application/ld+json">.
  */
 
-const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL ?? 'https://velora.com'
+const BASE_URL = (process.env.NEXT_PUBLIC_BASE_URL ?? 'https://velora.com')
+  .trim()
+  .replace(/\/$/, '')
 
 /**
  * Event schema for crash pages

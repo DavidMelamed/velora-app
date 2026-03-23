@@ -202,27 +202,36 @@ export const findAttorneysTool = tool({
     if (params.city) where.city = { contains: params.city, mode: 'insensitive' }
     if (params.specialty) where.practiceAreas = { has: params.specialty }
 
-    const attorneys = await prisma.attorney.findMany({
-      where,
+    const rankedAttorneys = await prisma.attorneyIndex.findMany({
+      where: { attorney: where },
+      orderBy: [
+        { score: 'desc' },
+        { reviewCount: 'desc' },
+      ],
+      take: params.limit,
       include: {
-        attorneyIndex: true,
-        reviewIntelligence: {
-          select: {
-            communication: true,
-            outcome: true,
-            responsiveness: true,
-            empathy: true,
-            expertise: true,
-            satisfaction: true,
-            reviewCount: true,
-            trend: true,
-            bestQuotes: true,
+        attorney: {
+          include: {
+            attorneyIndex: true,
+            reviewIntelligence: {
+              select: {
+                communication: true,
+                outcome: true,
+                responsiveness: true,
+                empathy: true,
+                expertise: true,
+                satisfaction: true,
+                reviewCount: true,
+                trend: true,
+                bestQuotes: true,
+              },
+            },
           },
         },
       },
-      orderBy: { attorneyIndex: { score: 'desc' } },
-      take: params.limit,
     })
+
+    const attorneys = rankedAttorneys.map((entry) => entry.attorney)
 
     return {
       attorneys: attorneys.map((a) => ({

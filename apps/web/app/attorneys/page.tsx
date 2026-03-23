@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { prisma } from '@velora/db'
+import { Prisma, prisma } from '@velora/db'
 import { displayName } from '@velora/shared'
 
 export const metadata: Metadata = {
@@ -15,6 +15,13 @@ interface SearchParams {
   page?: string
 }
 
+const attorneyCardInclude = {
+  attorneyIndex: { select: { score: true } },
+  _count: { select: { reviews: true } },
+} satisfies Prisma.AttorneyInclude
+
+type DirectoryAttorney = Prisma.AttorneyGetPayload<{ include: typeof attorneyCardInclude }>
+
 export default async function AttorneyDirectoryPage({
   searchParams,
 }: {
@@ -27,7 +34,7 @@ export default async function AttorneyDirectoryPage({
   const page = Math.max(1, parseInt(sp.page ?? '1', 10))
   const pageSize = 20
 
-  const where: Record<string, unknown> = {}
+  const where: Prisma.AttorneyWhereInput = {}
   if (query) {
     where.OR = [
       { name: { contains: query, mode: 'insensitive' } },
@@ -39,28 +46,55 @@ export default async function AttorneyDirectoryPage({
     where.stateCode = stateFilter.toUpperCase()
   }
 
-  const orderBy =
-    sortBy === 'name'
-      ? { name: 'asc' as const }
-      : sortBy === 'reviews'
-        ? { reviews: { _count: 'desc' as const } }
-        : { attorneyIndex: { score: 'desc' as const } }
+  let attorneys: DirectoryAttorney[] = []
+  let totalCount = 0
 
-  const [attorneys, totalCount] = await Promise.all([
-    prisma.attorney.findMany({
-      where,
-      orderBy,
-      skip: (page - 1) * pageSize,
-      take: pageSize,
-      include: {
-        attorneyIndex: { select: { score: true } },
-        _count: { select: { reviews: true } },
-      },
-    }),
-    prisma.attorney.count({ where }),
-  ])
+  if (sortBy === 'score') {
+    const [rankedAttorneys, rankedCount] = await Promise.all([
+      prisma.attorneyIndex.findMany({
+        where: { attorney: where },
+        orderBy: [
+          { score: 'desc' },
+          { reviewCount: 'desc' },
+        ],
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        include: {
+          attorney: {
+            include: attorneyCardInclude,
+          },
+        },
+      }),
+      prisma.attorneyIndex.count({
+        where: { attorney: where },
+      }),
+    ])
+
+    attorneys = rankedAttorneys.map((entry) => entry.attorney)
+    totalCount = rankedCount
+  } else {
+    const orderBy =
+      sortBy === 'name'
+        ? { name: 'asc' as const }
+        : { reviews: { _count: 'desc' as const } }
+
+    ;[attorneys, totalCount] = await Promise.all([
+      prisma.attorney.findMany({
+        where,
+        orderBy,
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        include: attorneyCardInclude,
+      }),
+      prisma.attorney.count({ where }),
+    ])
+  }
 
   const totalPages = Math.ceil(totalCount / pageSize)
+  const resultLabel =
+    sortBy === 'score'
+      ? 'ranked attorneys with an Attorney Index'
+      : 'attorneys'
 
   return (
     <main className="mx-auto max-w-5xl px-4 py-8">
@@ -68,7 +102,7 @@ export default async function AttorneyDirectoryPage({
         Attorney Directory
       </h1>
       <p className="mt-2 text-gray-600 dark:text-gray-400">
-        {totalCount.toLocaleString()} attorneys ranked by Velora&apos;s Attorney Index
+        {totalCount.toLocaleString()} {resultLabel}
       </p>
 
       {/* Search & Filter */}

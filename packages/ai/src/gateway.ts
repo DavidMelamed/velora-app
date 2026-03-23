@@ -11,6 +11,12 @@ interface ProviderConfig {
   getModel: (tier: ModelTier) => LanguageModelV1
 }
 
+const OPENROUTER_MODEL_IDS: Record<ModelTier, string> = {
+  premium: process.env.AI_OPENROUTER_PREMIUM_MODEL || 'google/gemini-2.5-pro',
+  standard: process.env.AI_OPENROUTER_STANDARD_MODEL || 'google/gemini-2.5-flash',
+  budget: process.env.AI_OPENROUTER_BUDGET_MODEL || 'mistralai/ministral-8b',
+}
+
 // Circuit breaker state per provider
 const circuitBreaker: Record<ProviderName, { failures: number; lastFailure: number; isOpen: boolean }> = {
   anthropic: { failures: 0, lastFailure: 0, isOpen: false },
@@ -81,15 +87,15 @@ function createOpenRouterProvider(): ProviderConfig {
         case 'premium':
           // Google Gemini Pro — high quality, much cheaper than Opus
           // $2/M input, $12/M output (vs Opus $15/$75)
-          return openrouter('google/gemini-2.5-pro-preview')
+          return openrouter(OPENROUTER_MODEL_IDS.premium)
         case 'standard':
           // Google Gemini Flash — fast, high quality, extremely cheap
           // $0.10/M input, $0.40/M output (vs Sonnet $3/$15)
-          return openrouter('google/gemini-2.5-flash-preview')
+          return openrouter(OPENROUTER_MODEL_IDS.standard)
         case 'budget':
           // Mistral Ministral 8B — fast classification/scoring
           // $0.15/M input, $0.15/M output (vs Haiku $0.80/$4)
-          return openrouter('mistralai/ministral-8b-2512')
+          return openrouter(OPENROUTER_MODEL_IDS.budget)
       }
     },
   }

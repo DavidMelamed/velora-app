@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { prisma } from '@velora/db'
+import { displayName } from '@velora/shared'
 import { AttorneyProfile } from '@/components/attorney/AttorneyProfileV2'
 import type { DimensionScores } from '@/components/attorney/ReviewDimensions'
 import { legalServiceSchema, jsonLdScript } from '@/lib/seo/schema-markup'
@@ -19,8 +20,9 @@ export async function generateMetadata({ params }: AttorneyPageProps): Promise<M
   if (!attorney) return { title: 'Attorney Not Found' }
 
   const location = [attorney.city, attorney.stateCode].filter(Boolean).join(', ')
-  const title = `${attorney.name}${attorney.firmName ? ` — ${attorney.firmName}` : ''} | Velora`
-  const description = `${attorney.name} in ${location}. ${attorney.practiceAreas.slice(0, 3).join(', ')}. View Attorney Index score, Review Intelligence, and client reviews on Velora.`
+  const practiceAreas = attorney.practiceAreas.slice(0, 3).map(displayName).join(', ')
+  const title = `${attorney.name}${attorney.firmName ? ` - ${attorney.firmName}` : ''} | Velora`
+  const description = `${attorney.name} in ${location}. ${practiceAreas}. View Attorney Index score, Review Intelligence, and client reviews on Velora.`
 
   return {
     title,
@@ -56,16 +58,19 @@ export default async function AttorneyPage({ params }: AttorneyPageProps) {
       }
     : null
 
-  // bestQuotes may be string[] or {text, rating, dimension, sentiment}[] depending on data source
-  // JSON round-trip to break RSC deduplication and force plain strings
   let bestQuotes: string[] = []
   try {
     const rawQuotes = attorney.reviewIntelligence?.bestQuotes
     if (Array.isArray(rawQuotes)) {
-      bestQuotes = rawQuotes.map((q: unknown) =>
-        typeof q === 'string' ? q : typeof q === 'object' && q !== null && 'text' in q ? String((q as Record<string, unknown>).text) : ''
-      ).filter(Boolean)
-      // JSON round-trip to ensure plain serializable strings
+      bestQuotes = rawQuotes
+        .map((q: unknown) =>
+          typeof q === 'string'
+            ? q
+            : typeof q === 'object' && q !== null && 'text' in q
+              ? String((q as Record<string, unknown>).text)
+              : '',
+        )
+        .filter(Boolean)
       bestQuotes = JSON.parse(JSON.stringify(bestQuotes))
     }
   } catch {
