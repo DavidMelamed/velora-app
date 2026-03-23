@@ -1,15 +1,12 @@
-import { createDataStreamResponse, formatDataStreamPart, generateText, streamText } from 'ai'
+import { createDataStreamResponse, formatDataStreamPart } from 'ai'
 import {
   detectPersona,
   findAttorneys,
   findAttorneysTool,
-  getActiveProvider,
   getIntersectionStatsTool,
-  getModel,
   getPersonaConfig,
   getTrends,
   getTrendsTool,
-  recordProviderFailure,
   searchCrashes,
   searchCrashesTool,
 } from '@velora/ai'
@@ -33,6 +30,16 @@ Available capabilities:
 - findAttorneys: Find top-rated personal injury attorneys by location
 - getTrends: Analyze crash trends over time by various periods`
 
+const BASE_OPEN_ENDED_SYSTEM_PROMPT = `You are Velora, a crash data intelligence assistant.
+
+Key behaviors:
+- Answer directly in plain English
+- Never mention tools, function calls, JSON, or internal workflow
+- Use a practical, data-literate tone and be concise
+- Be empathetic when discussing crashes involving injuries or fatalities
+- Never provide legal advice
+- If the user wants exact crash counts, attorney rankings, or trend analytics, tell them to ask a state-based crash, attorney, or trend question`
+
 type StructuredSearchResponse =
   | {
       kind: 'text'
@@ -46,35 +53,36 @@ type StructuredSearchResponse =
       result: Record<string, unknown>
     }
 
+type SearchMessage = {
+  role: string
+  content?: unknown
+  parts?: Array<{ type?: string; text?: string }>
+}
+
+type OpenRouterMessage = {
+  role: 'system' | 'user' | 'assistant'
+  content: string
+}
+
 const STATE_MATCHERS = [...STATE_CATALOG].sort((a, b) => b.name.length - a.name.length)
-const OPEN_ENDED_SEARCH_CHECK_TTL_MS = 5 * 60 * 1000
 const OPEN_ENDED_SEARCH_LIMITED_MESSAGE =
   'Open-ended AI answers are temporarily limited right now. I can still help with state-based crash searches, attorney lookups, and trend analysis. Try "Find top-rated personal injury attorneys in PA", "Show me fatal crashes in Pennsylvania this year", or "What are crash trends by day of week in New York?".'
-
-let openEndedSearchHealth:
-  | {
-      available: boolean
-      checkedAt: number
-    }
-  | null = null
+const OPENROUTER_OPEN_ENDED_MODELS = [
+  'deepseek/deepseek-v3.2',
+  'google/gemini-3.1-pro-preview',
+  'google/gemini-3.1-flash-lite-preview',
+] as const
 
 export async function POST(req: Request) {
   try {
     const { messages } = await req.json()
 
-    const lastUserMessage = [...messages].reverse().find((m: { role: string }) => m.role === 'user')
+    const lastUserMessage = [...messages].reverse().find((m: SearchMessage) => m.role === 'user')
     const userText = getUserText(lastUserMessage)
 
     const structuredResponse = await resolveStructuredSearch(userText)
     if (structuredResponse) {
       return createStructuredSearchResponse(structuredResponse)
-    }
-
-    if (!(await canServeOpenEndedSearch())) {
-      return createStructuredSearchResponse({
-        kind: 'text',
-        text: OPEN_ENDED_SEARCH_LIMITED_MESSAGE,
-      })
     }
 
     const detected = detectPersona(userText)
@@ -87,24 +95,20 @@ ${personaConfig.systemPromptModifier}
 Detected persona: ${detected.type} (confidence: ${detected.confidence})
 Tone: ${personaConfig.tone}`
 
-    const result = streamText({
-      model: getModel('standard'),
-      system: systemPrompt,
-      messages,
-      tools: {
-        searchCrashes: searchCrashesTool,
-        getIntersectionStats: getIntersectionStatsTool,
-        findAttorneys: findAttorneysTool,
-        getTrends: getTrendsTool,
-      },
-      maxSteps: 8,
-      onError: ({ error }) => {
-        console.error('Search stream failed', error)
-      },
-    })
+    const openEndedSystemPrompt = `${BASE_OPEN_ENDED_SYSTEM_PROMPT}
 
-    return result.toDataStreamResponse({
-      getErrorMessage: () => 'Search failed.',
+${personaConfig.systemPromptModifier}
+
+Detected persona: ${detected.type} (confidence: ${detected.confidence})
+Tone: ${personaConfig.tone}`
+
+    const openEndedResponse =
+      (await generateOpenEndedSearchText(messages as SearchMessage[], openEndedSystemPrompt)) ??
+      OPEN_ENDED_SEARCH_LIMITED_MESSAGE
+
+    return createStructuredSearchResponse({
+      kind: 'text',
+      text: openEndedResponse,
     })
   } catch (error) {
     console.error('Search route initialization failed', error)
@@ -123,32 +127,67 @@ Tone: ${personaConfig.tone}`
   }
 }
 
-async function canServeOpenEndedSearch(): Promise<boolean> {
-  const now = Date.now()
-  if (openEndedSearchHealth && now - openEndedSearchHealth.checkedAt < OPEN_ENDED_SEARCH_CHECK_TTL_MS) {
-    return openEndedSearchHealth.available
+async function generateOpenEndedSearchText(messages: SearchMessage[], systemPrompt: string): Promise<string | null> {
+  const apiKey = process.env.OPENROUTER_API_KEY
+  if (!apiKey) {
+    return null
   }
 
-  try {
-    await generateText({
-      model: getModel('standard'),
-      prompt: 'Reply with the single word OK.',
-      maxTokens: 5,
-      temperature: 0,
-    })
+  const normalizedMessages = normalizeOpenRouterMessages(messages)
+  if (normalizedMessages.length === 0) {
+    return null
+  }
 
-    openEndedSearchHealth = { available: true, checkedAt: now }
-    return true
-  } catch (error) {
-    const activeProvider = getActiveProvider()
-    if (activeProvider) {
-      recordProviderFailure(activeProvider)
+  const siteUrl = (process.env.NEXT_PUBLIC_BASE_URL ?? 'https://velora.com').trim()
+
+  for (const model of OPENROUTER_OPEN_ENDED_MODELS) {
+    try {
+      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': siteUrl,
+          'X-Title': 'Velora Search',
+        },
+        body: JSON.stringify({
+          model,
+          messages: [{ role: 'system', content: systemPrompt }, ...normalizedMessages],
+          max_tokens: 600,
+          temperature: 0.2,
+        }),
+      })
+
+      const payload = (await response.json().catch(() => null)) as
+        | {
+            choices?: Array<{
+              message?: { content?: string | Array<{ type?: string; text?: string }> | null }
+            }>
+            error?: { message?: string }
+          }
+        | null
+
+      if (!response.ok) {
+        console.error('Open-ended search request failed', {
+          model,
+          status: response.status,
+          error: payload?.error?.message ?? 'Unknown error',
+        })
+        continue
+      }
+
+      const text = extractOpenRouterText(payload?.choices?.[0]?.message?.content)
+      if (text) {
+        return text
+      }
+
+      console.error('Open-ended search returned empty content', { model })
+    } catch (error) {
+      console.error('Open-ended search transport failed', { model, error })
     }
-
-    console.error('Open-ended search availability check failed', error)
-    openEndedSearchHealth = { available: false, checkedAt: now }
-    return false
   }
+
+  return null
 }
 
 async function resolveStructuredSearch(query: string): Promise<StructuredSearchResponse | null> {
@@ -287,7 +326,7 @@ function createStructuredSearchResponse(response: StructuredSearchResponse): Res
   })
 }
 
-function getUserText(message: { content?: unknown; parts?: Array<{ type?: string; text?: string }> } | undefined): string {
+function getUserText(message: SearchMessage | undefined): string {
   if (!message) return ''
   if (typeof message.content === 'string') return message.content
   if (Array.isArray(message.parts)) {
@@ -297,6 +336,42 @@ function getUserText(message: { content?: unknown; parts?: Array<{ type?: string
       .join('\n')
   }
   return ''
+}
+
+function normalizeOpenRouterMessages(messages: SearchMessage[]): OpenRouterMessage[] {
+  return messages
+    .flatMap((message): OpenRouterMessage[] => {
+      if (message.role !== 'user' && message.role !== 'assistant' && message.role !== 'system') {
+        return []
+      }
+
+      const text = getUserText(message).trim()
+      if (!text) {
+        return []
+      }
+
+      return [{ role: message.role, content: text }]
+    })
+    .slice(-8)
+}
+
+function extractOpenRouterText(content: string | Array<{ type?: string; text?: string }> | null | undefined): string | null {
+  if (typeof content === 'string') {
+    const trimmed = content.trim()
+    return trimmed ? trimmed : null
+  }
+
+  if (Array.isArray(content)) {
+    const text = content
+      .filter((part) => part?.type === 'text' && typeof part.text === 'string')
+      .map((part) => part.text as string)
+      .join('\n')
+      .trim()
+
+    return text ? text : null
+  }
+
+  return null
 }
 
 function extractState(query: string) {
