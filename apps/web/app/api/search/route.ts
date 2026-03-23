@@ -2,13 +2,9 @@ import { createDataStreamResponse, formatDataStreamPart } from 'ai'
 import {
   detectPersona,
   findAttorneys,
-  findAttorneysTool,
-  getIntersectionStatsTool,
   getPersonaConfig,
   getTrends,
-  getTrendsTool,
   searchCrashes,
-  searchCrashesTool,
 } from '@velora/ai'
 import { STATE_CATALOG } from '@velora/shared'
 
@@ -87,13 +83,6 @@ export async function POST(req: Request) {
 
     const detected = detectPersona(userText)
     const personaConfig = getPersonaConfig(detected.type)
-
-    const systemPrompt = `${BASE_SYSTEM_PROMPT}
-
-${personaConfig.systemPromptModifier}
-
-Detected persona: ${detected.type} (confidence: ${detected.confidence})
-Tone: ${personaConfig.tone}`
 
     const openEndedSystemPrompt = `${BASE_OPEN_ENDED_SYSTEM_PROMPT}
 
