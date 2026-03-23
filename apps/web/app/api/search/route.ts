@@ -1,13 +1,15 @@
-import { createDataStreamResponse, formatDataStreamPart, streamText } from 'ai'
+import { createDataStreamResponse, formatDataStreamPart, generateText, streamText } from 'ai'
 import {
   detectPersona,
   findAttorneys,
   findAttorneysTool,
+  getActiveProvider,
   getIntersectionStatsTool,
   getModel,
   getPersonaConfig,
   getTrends,
   getTrendsTool,
+  recordProviderFailure,
   searchCrashes,
   searchCrashesTool,
 } from '@velora/ai'
@@ -45,6 +47,16 @@ type StructuredSearchResponse =
     }
 
 const STATE_MATCHERS = [...STATE_CATALOG].sort((a, b) => b.name.length - a.name.length)
+const OPEN_ENDED_SEARCH_CHECK_TTL_MS = 5 * 60 * 1000
+const OPEN_ENDED_SEARCH_LIMITED_MESSAGE =
+  'Open-ended AI answers are temporarily limited right now. I can still help with state-based crash searches, attorney lookups, and trend analysis. Try "Find top-rated personal injury attorneys in PA", "Show me fatal crashes in Pennsylvania this year", or "What are crash trends by day of week in New York?".'
+
+let openEndedSearchHealth:
+  | {
+      available: boolean
+      checkedAt: number
+    }
+  | null = null
 
 export async function POST(req: Request) {
   try {
@@ -56,6 +68,13 @@ export async function POST(req: Request) {
     const structuredResponse = await resolveStructuredSearch(userText)
     if (structuredResponse) {
       return createStructuredSearchResponse(structuredResponse)
+    }
+
+    if (!(await canServeOpenEndedSearch())) {
+      return createStructuredSearchResponse({
+        kind: 'text',
+        text: OPEN_ENDED_SEARCH_LIMITED_MESSAGE,
+      })
     }
 
     const detected = detectPersona(userText)
@@ -101,6 +120,34 @@ Tone: ${personaConfig.tone}`
       },
       { status: isProviderConfigError ? 503 : 500 },
     )
+  }
+}
+
+async function canServeOpenEndedSearch(): Promise<boolean> {
+  const now = Date.now()
+  if (openEndedSearchHealth && now - openEndedSearchHealth.checkedAt < OPEN_ENDED_SEARCH_CHECK_TTL_MS) {
+    return openEndedSearchHealth.available
+  }
+
+  try {
+    await generateText({
+      model: getModel('budget'),
+      prompt: 'Reply with the single word OK.',
+      maxTokens: 5,
+      temperature: 0,
+    })
+
+    openEndedSearchHealth = { available: true, checkedAt: now }
+    return true
+  } catch (error) {
+    const activeProvider = getActiveProvider()
+    if (activeProvider) {
+      recordProviderFailure(activeProvider)
+    }
+
+    console.error('Open-ended search availability check failed', error)
+    openEndedSearchHealth = { available: false, checkedAt: now }
+    return false
   }
 }
 
