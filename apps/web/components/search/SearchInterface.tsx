@@ -74,7 +74,6 @@ function SearchInterfaceInner() {
     api: '/api/search',
     id: 'velora-search',
     initialMessages: getStoredMessages(),
-    maxSteps: 8,
   })
 
   // Persist messages to sessionStorage
