@@ -70,6 +70,10 @@ interface DimensionScores {
   satisfaction: number
 }
 
+interface ReviewDimensionScores extends DimensionScores {
+  _primaryDimension?: string
+}
+
 function clamp(v: unknown): number {
   const n = typeof v === 'number' ? v : 50
   return Math.max(0, Math.min(100, Math.round(n)))
@@ -89,8 +93,8 @@ function heuristicScores(rating: number): DimensionScores {
  */
 async function extractDimensionsBatch(
   reviews: Array<{ text: string | null; rating: number }>
-): Promise<{ allScores: DimensionScores[]; aiCalls: number }> {
-  const allScores: DimensionScores[] = []
+): Promise<{ allScores: ReviewDimensionScores[]; aiCalls: number }> {
+  const allScores: ReviewDimensionScores[] = []
   let aiCalls = 0
 
   // Split reviews: those with text (AI) vs without (heuristic)
@@ -151,7 +155,7 @@ async function extractDimensionsBatch(
           }
           // Track primary dimension for bestQuotes
           if (typeof p.primaryDimension === 'string') {
-            ;(allScores[batch[j].idx] as Record<string, unknown>)._primaryDimension = p.primaryDimension
+            allScores[batch[j].idx]._primaryDimension = p.primaryDimension
           }
         }
       }
@@ -221,7 +225,8 @@ async function runReviewIntelligence() {
   console.log(`Total reviews: ${totalReviews} | Est. API calls: ${estimatedCalls} | Est. cost: $${estimatedCost.toFixed(2)}`)
 
   if (estimatedCost > budgetRemaining()) {
-    const canAfford = Math.floor(budgetRemaining() / COST_PER_REVIEW)
+    const costPerReview = COST_PER_BATCH_CALL / 10
+    const canAfford = Math.floor(budgetRemaining() / costPerReview)
     console.log(`⚠ Budget constraint: can only afford ${canAfford} reviews. Limiting scope.`)
   }
 
@@ -291,7 +296,7 @@ async function runReviewIntelligence() {
         .filter(r => r.text && r.text.length > 50)
         .map((r, idx) => ({
           text: r.text!.length > 200 ? r.text!.slice(0, 200) + '...' : r.text!,
-          dimension: ((allScores[idx] as Record<string, unknown>)?._primaryDimension as string) || 'communication',
+          dimension: allScores[idx]?._primaryDimension || 'communication',
           sentiment: (r.rating >= 4 ? 'positive' : r.rating <= 2 ? 'negative' : 'neutral') as 'positive' | 'negative' | 'neutral',
           rating: r.rating,
         }))
@@ -552,7 +557,7 @@ async function runGEPACycles() {
           dryRun: false,
         })
         trackCost(0.025, `GEPA ${sig}`)
-        console.log(`  ✅ ${sig}: ${result.variants.length} variants evaluated, winner score: ${result.winner?.score.toFixed(2) || 'N/A'}`)
+        console.log(`  ✅ ${sig}: ${result.variants.length} variants evaluated, winner score: ${result.winner?.compositeScore.toFixed(2) || 'N/A'}`)
       } catch (err) {
         console.warn(`  ⚠ GEPA ${sig} failed:`, err instanceof Error ? err.message : err)
       }

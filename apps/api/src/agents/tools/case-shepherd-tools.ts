@@ -1,4 +1,6 @@
 import { createTool } from '@mastra/core/tools'
+import type { CoreTool } from '@mastra/core/tools'
+import { makeCoreTool } from '@mastra/core/utils'
 import { z } from 'zod'
 import { prisma } from '@velora/db'
 import { getActiveFacts } from '../../services/case/fact-manager'
@@ -146,3 +148,10 @@ export const caseShepherdTools = {
   extractAndUpdate: extractAndUpdateTool,
   createConfirmation: createConfirmationTool,
 }
+
+export const caseShepherdAiTools = Object.fromEntries(
+  Object.entries(caseShepherdTools).map(([name, tool]) => [
+    name,
+    makeCoreTool(tool, { name, requestContext: {} as never }, 'toolset'),
+  ])
+) as Record<keyof typeof caseShepherdTools, CoreTool>

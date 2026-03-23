@@ -15,7 +15,7 @@
  *   DATABASE_URL="..." pnpm tsx apps/pipeline/src/scripts/import-existing-data.ts
  */
 
-import { prisma } from '@velora/db'
+import { prisma, Prisma } from '@velora/db'
 import * as fs from 'fs'
 import * as path from 'path'
 
@@ -165,6 +165,10 @@ function safeDate(dateStr: string | null | undefined): Date | null {
   }
 }
 
+function toJsonInput(value: unknown): Prisma.InputJsonValue | undefined {
+  return value == null ? undefined : (value as Prisma.InputJsonValue)
+}
+
 function extractDomain(url: string | null): string | null {
   if (!url) return null
   try {
@@ -244,7 +248,7 @@ async function importAttorneys(lawyers: RawLawyer[]): Promise<number> {
         googlePlaceId: featureId,
         googleCid: cid,
         address: fullAddress,
-        addressInfo: raw.address_info ?? undefined,
+        addressInfo: toJsonInput(raw.address_info),
         city: cityName || null,
         stateCode: stateCode || null,
         zipCode: raw.address_info?.zip || null,
@@ -254,8 +258,8 @@ async function importAttorneys(lawyers: RawLawyer[]): Promise<number> {
         additionalCategories: [] as string[],
         googleRating: raw.rating?.value ?? null,
         googleReviewCount: raw.rating?.votes_count ?? 0,
-        ratingDistribution: raw.rating_distribution ?? undefined,
-        workHours: raw.work_time ?? undefined,
+        ratingDistribution: toJsonInput(raw.rating_distribution),
+        workHours: toJsonInput(raw.work_time),
         googleMapsUrl: raw.check_url || null,
         practiceAreas: buildPracticeAreas(raw.category, raw.category_ids),
       }
@@ -414,7 +418,7 @@ async function importReviews(
     const BATCH_SIZE = 200
     for (let bi = 0; bi < newReviews.length; bi += BATCH_SIZE) {
       const batch = newReviews.slice(bi, bi + BATCH_SIZE)
-      const records = batch.map(review => ({
+      const records: Prisma.AttorneyReviewCreateManyInput[] = batch.map(review => ({
         attorneyId,
         googleReviewId: review.id,
         authorName: review.reviewerName || null,
@@ -496,7 +500,7 @@ function buildPracticeAreas(category: string | null, categoryIds: string[] | nul
   return areas
 }
 
-function buildReviewDimensions(review: RawReview): Record<string, unknown> | undefined {
+function buildReviewDimensions(review: RawReview): Prisma.InputJsonValue | undefined {
   const dims: Record<string, unknown> = {}
 
   if (review.dimensions) dims.dimensions = review.dimensions
@@ -518,7 +522,7 @@ function buildReviewDimensions(review: RawReview): Record<string, unknown> | und
   if (review.isPeerEndorsement) dims.isPeerEndorsement = review.isPeerEndorsement
   if (review.mentionedStaff && review.mentionedStaff.length > 0) dims.mentionedStaff = review.mentionedStaff
 
-  return Object.keys(dims).length > 0 ? dims : undefined
+  return Object.keys(dims).length > 0 ? (dims as unknown as Prisma.InputJsonValue) : undefined
 }
 
 // ---------------------------------------------------------------------------

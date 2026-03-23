@@ -1,5 +1,7 @@
 import { generateText } from 'ai'
 import { getModel } from '@velora/ai'
+import { detectTrend } from './review-trend'
+import type { ReviewTrendSample } from './review-trend'
 
 // 8 review dimensions
 export const REVIEW_DIMENSIONS = [
@@ -40,13 +42,7 @@ export interface ReviewIntelligenceData {
   bestQuotes: ReviewQuoteData[]
 }
 
-export interface AttorneyReview {
-  id: string
-  text: string | null
-  rating: number
-  publishedAt: Date | null
-  authorName: string | null
-}
+export interface AttorneyReview extends ReviewTrendSample {}
 
 const DIMENSION_EXTRACTION_PROMPT = `Analyze this attorney review and score each dimension 0-100.
 Return JSON only: { "communication": 85, "outcome": 70, "responsiveness": 80, "empathy": 75, "expertise": 90, "feeTransparency": 60, "trialExperience": 50, "satisfaction": 85 }
@@ -182,42 +178,7 @@ function aggregateDimensions(allScores: DimensionScores[]): DimensionScores {
   }
 }
 
-/**
- * Detect review trend by comparing recent half vs older half average ratings.
- * Threshold: ±0.3 on 1-5 scale.
- */
-export function detectTrend(
-  reviews: AttorneyReview[],
-  periodMonths: number = 12
-): 'IMPROVING' | 'STABLE' | 'DECLINING' {
-  if (reviews.length < 4) return 'STABLE'
-
-  // Sort by date, oldest first
-  const sorted = [...reviews]
-    .filter((r) => r.publishedAt != null)
-    .sort((a, b) => (a.publishedAt!.getTime() - b.publishedAt!.getTime()))
-
-  if (sorted.length < 4) return 'STABLE'
-
-  // Filter to period
-  const cutoff = new Date()
-  cutoff.setMonth(cutoff.getMonth() - periodMonths)
-  const inPeriod = sorted.filter((r) => r.publishedAt! >= cutoff)
-
-  if (inPeriod.length < 4) return 'STABLE'
-
-  const midpoint = Math.floor(inPeriod.length / 2)
-  const olderHalf = inPeriod.slice(0, midpoint)
-  const recentHalf = inPeriod.slice(midpoint)
-
-  const avgOlder = olderHalf.reduce((sum, r) => sum + r.rating, 0) / olderHalf.length
-  const avgRecent = recentHalf.reduce((sum, r) => sum + r.rating, 0) / recentHalf.length
-
-  const diff = avgRecent - avgOlder
-  if (diff >= 0.3) return 'IMPROVING'
-  if (diff <= -0.3) return 'DECLINING'
-  return 'STABLE'
-}
+export { detectTrend } from './review-trend'
 
 /**
  * Extract top 3 representative excerpts from reviews for given dimensions.

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { PUBLIC_API_BASE } from '@/lib/public-api-base'
 
 interface ConsultationCTAProps {
   attorneyId: string
@@ -22,8 +23,7 @@ export function ConsultationCTA({ attorneyId, attorneyName }: ConsultationCTAPro
     const formData = new FormData(form)
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
-      const res = await fetch(`${apiUrl}/api/leads`, {
+      const res = await fetch(`${PUBLIC_API_BASE}/api/leads`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

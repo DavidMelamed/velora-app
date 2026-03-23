@@ -5,7 +5,7 @@ import {
   computeSpecialtyScore,
   getDataQualityTier,
 } from '../services/attorney-index'
-import { detectTrend } from '../services/review-intelligence'
+import { detectTrend } from '../services/review-trend'
 import type { ReviewIntelligenceData } from '../services/review-intelligence'
 
 describe('Attorney Index', () => {

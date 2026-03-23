@@ -1,7 +1,8 @@
 import TimelineWeb from '@/components/case/TimelineWeb'
+import { SERVER_API_URL } from '@/lib/server-api-url'
 import { displayName } from '@velora/shared'
 
-const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
+const API = SERVER_API_URL
 
 async function fetchSharedCase(token: string) {
   try {

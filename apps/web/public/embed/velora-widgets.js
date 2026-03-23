@@ -1,11 +1,13 @@
 /**
  * Velora Embeddable Widgets - Self-contained Web Components
- * <script src="https://velora.com/embed/velora-widgets.js"></script>
+ * <script src="https://your-domain.com/embed/velora-widgets.js"></script>
  */
 (function () {
   'use strict';
-  var WEB = 'https://velora.com';
-  var API = 'https://api.velora.com';
+  var currentScript = document.currentScript;
+  var origin = currentScript && currentScript.src ? new URL(currentScript.src).origin : window.location.origin;
+  var WEB = origin;
+  var API = origin;
   var S = ':host{display:block;font-family:system-ui,sans-serif;color:#1f2937;line-height:1.5}.vc{border:1px solid #e5e7eb;border-radius:12px;padding:16px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.1)}.vt{font-size:14px;font-weight:600;color:#374151;margin:0 0 12px}.vl{color:#2563eb;text-decoration:none;font-size:12px}.vf{margin-top:12px;padding-top:8px;border-top:1px solid #f3f4f6;display:flex;justify-content:space-between;align-items:center}.vp{font-size:10px;color:#9ca3af}';
 
   function esc(s) { var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }

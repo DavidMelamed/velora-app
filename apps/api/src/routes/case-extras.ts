@@ -232,7 +232,7 @@ router.post('/:id/chat/simple', async (req, res) => {
     const { getModel } = await import('@velora/ai')
     const { getActiveFacts } = await import('../services/case/fact-manager')
     const { agentConfigs, AGENT_IDS } = await import('../agents/mastra-config')
-    const { caseShepherdTools } = await import('../agents/tools/case-shepherd-tools')
+    const { caseShepherdAiTools } = await import('../agents/tools/case-shepherd-tools')
     const { ingestEpisode } = await import('../services/case/episode-ingest')
     const { EpisodeType } = await import('@velora/shared')
 
@@ -282,7 +282,7 @@ router.post('/:id/chat/simple', async (req, res) => {
       model: getModel('standard'),
       system: systemPrompt,
       messages,
-      tools: caseShepherdTools as Record<string, unknown>,
+      tools: caseShepherdAiTools,
       maxSteps: 5,
     })
 

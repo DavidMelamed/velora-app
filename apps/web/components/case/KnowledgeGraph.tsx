@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { PUBLIC_API_BASE } from '@/lib/public-api-base'
 
 interface GraphNode {
   id: string
@@ -92,7 +93,7 @@ export default function KnowledgeGraph({ matterId, apiUrl }: KnowledgeGraphProps
   const transformRef = useRef({ x: 0, y: 0, scale: 1 })
   const dragRef = useRef<{ node: GraphNode | null; startX: number; startY: number }>({ node: null, startX: 0, startY: 0 })
 
-  const api = apiUrl || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
+  const api = apiUrl || PUBLIC_API_BASE
 
   const fetchGraph = useCallback(async () => {
     setLoading(true)

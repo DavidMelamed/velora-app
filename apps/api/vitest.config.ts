@@ -6,5 +6,10 @@ export default defineConfig({
     environment: 'node',
     include: ['src/**/*.test.ts'],
     exclude: ['dist/**', 'node_modules/**'],
+    server: {
+      deps: {
+        inline: [/^@velora\//],
+      },
+    },
   },
 })

@@ -3,9 +3,7 @@
  * Sends events to /api/feedback in the background.
  */
 
-const API_BASE = typeof window !== 'undefined'
-  ? (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000')
-  : ''
+const API_BASE = PUBLIC_API_BASE
 
 function getSessionId(): string {
   if (typeof window === 'undefined') return ''
@@ -119,3 +117,4 @@ export function trackSearchClick(query: string, resultId: string): void {
 }
 
 export { getSessionId }
+import { PUBLIC_API_BASE } from '@/lib/public-api-base'

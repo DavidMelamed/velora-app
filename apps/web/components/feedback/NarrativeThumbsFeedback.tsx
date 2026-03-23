@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useCallback } from 'react'
+import { PUBLIC_API_BASE } from '@/lib/public-api-base'
 
 interface NarrativeThumbsFeedbackProps {
   crashId: string
@@ -17,8 +18,7 @@ export function NarrativeThumbsFeedback({ crashId, sessionId }: NarrativeThumbsF
       setIsSubmitting(true)
 
       try {
-        const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
-        const res = await fetch(`${apiBase}/api/feedback`, {
+        const res = await fetch(`${PUBLIC_API_BASE}/api/feedback`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

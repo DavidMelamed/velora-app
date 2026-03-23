@@ -28,33 +28,48 @@ Available capabilities:
 - getTrends: Analyze crash trends over time by various periods`
 
 export async function POST(req: Request) {
-  const { messages } = await req.json()
+  try {
+    const { messages } = await req.json()
 
-  // Detect persona from the latest user message
-  const lastUserMessage = [...messages].reverse().find((m: { role: string }) => m.role === 'user')
-  const userText = lastUserMessage?.content ?? ''
-  const detected = detectPersona(typeof userText === 'string' ? userText : '')
-  const personaConfig = getPersonaConfig(detected.type)
+    // Detect persona from the latest user message
+    const lastUserMessage = [...messages].reverse().find((m: { role: string }) => m.role === 'user')
+    const userText = lastUserMessage?.content ?? ''
+    const detected = detectPersona(typeof userText === 'string' ? userText : '')
+    const personaConfig = getPersonaConfig(detected.type)
 
-  const systemPrompt = `${BASE_SYSTEM_PROMPT}
+    const systemPrompt = `${BASE_SYSTEM_PROMPT}
 
 ${personaConfig.systemPromptModifier}
 
 Detected persona: ${detected.type} (confidence: ${detected.confidence})
 Tone: ${personaConfig.tone}`
 
-  const result = streamText({
-    model: getModel('standard'),
-    system: systemPrompt,
-    messages,
-    tools: {
-      searchCrashes: searchCrashesTool,
-      getIntersectionStats: getIntersectionStatsTool,
-      findAttorneys: findAttorneysTool,
-      getTrends: getTrendsTool,
-    },
-    maxSteps: 8,
-  })
+    const result = streamText({
+      model: getModel('standard'),
+      system: systemPrompt,
+      messages,
+      tools: {
+        searchCrashes: searchCrashesTool,
+        getIntersectionStats: getIntersectionStatsTool,
+        findAttorneys: findAttorneysTool,
+        getTrends: getTrendsTool,
+      },
+      maxSteps: 8,
+    })
 
-  return result.toDataStreamResponse()
+    return result.toDataStreamResponse()
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error'
+    const isProviderConfigError = message.includes('No AI provider available')
+
+    return Response.json(
+      {
+        error: isProviderConfigError
+          ? 'Search is not configured. Set an AI provider key for the web app.'
+          : 'Search failed.',
+        details: process.env.NODE_ENV === 'production' ? undefined : message,
+      },
+      { status: isProviderConfigError ? 503 : 500 },
+    )
+  }
 }

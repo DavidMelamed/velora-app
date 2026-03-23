@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
+import { SERVER_API_URL } from '@/lib/server-api-url'
 
 export async function GET(
   request: NextRequest,
@@ -9,7 +8,7 @@ export async function GET(
   const { path } = await params
   const subPath = path.join('/')
   const searchParams = request.nextUrl.searchParams.toString()
-  const url = `${API_URL}/api/admin/learning/${subPath}${searchParams ? `?${searchParams}` : ''}`
+  const url = `${SERVER_API_URL}/api/admin/learning/${subPath}${searchParams ? `?${searchParams}` : ''}`
 
   try {
     const res = await fetch(url, {

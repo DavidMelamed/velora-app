@@ -3,15 +3,17 @@ import {
   OpenAIAdapter,
   copilotRuntimeNextJSAppRouterEndpoint,
 } from '@copilotkit/runtime'
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
+import { SERVER_API_URL } from '@/lib/server-api-url'
 
 // Use OpenRouter with cheap Gemini Flash instead of expensive Anthropic Sonnet
 // Cost: ~$0.10/M input vs $3/M input (30x cheaper)
+if (process.env.OPENROUTER_API_KEY) {
+  process.env.OPENAI_API_KEY = process.env.OPENROUTER_API_KEY
+  process.env.OPENAI_BASE_URL = 'https://openrouter.ai/api/v1'
+}
+
 const serviceAdapter = new OpenAIAdapter({
   model: process.env.COPILOT_MODEL || 'google/gemini-2.5-flash-preview',
-  openaiApiKey: process.env.OPENROUTER_API_KEY,
-  openaiBaseUrl: 'https://openrouter.ai/api/v1',
 })
 
 const runtime = new CopilotRuntime({
@@ -49,7 +51,7 @@ const runtime = new CopilotRuntime({
       handler: async ({ crashId, stateCode, severity, limit }: { crashId: string; stateCode?: string; severity?: string; limit?: number }) => {
         try {
           // Fetch the crash to get its details for similarity search
-          const crashRes = await fetch(`${API_URL}/api/crashes/${crashId}`)
+          const crashRes = await fetch(`${SERVER_API_URL}/api/crashes/${crashId}`)
           if (!crashRes.ok) return { error: 'Crash not found', crashes: [] }
           const { data: crash } = await crashRes.json()
 
@@ -58,7 +60,7 @@ const runtime = new CopilotRuntime({
           if (stateCode || crash.stateCode) params.set('state', stateCode || crash.stateCode)
           if (severity || crash.crashSeverity) params.set('severity', severity || crash.crashSeverity)
 
-          const searchRes = await fetch(`${API_URL}/api/crashes?${params}`)
+          const searchRes = await fetch(`${SERVER_API_URL}/api/crashes?${params}`)
           if (!searchRes.ok) return { error: 'Search failed', crashes: [] }
           const results = await searchRes.json()
 
@@ -87,14 +89,14 @@ const runtime = new CopilotRuntime({
       handler: async ({ crashId }: { crashId: string }) => {
         try {
           // First check for cached briefing
-          const cachedRes = await fetch(`${API_URL}/api/equalizer/${crashId}`)
+          const cachedRes = await fetch(`${SERVER_API_URL}/api/equalizer/${crashId}`)
           if (cachedRes.ok) {
             const cached = await cachedRes.json()
             return { message: 'Equalizer briefing retrieved', briefing: cached.data }
           }
 
           // Generate fresh briefing
-          const genRes = await fetch(`${API_URL}/api/equalizer/${crashId}/generate`, {
+          const genRes = await fetch(`${SERVER_API_URL}/api/equalizer/${crashId}/generate`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
           })
@@ -123,7 +125,7 @@ const runtime = new CopilotRuntime({
       ],
       handler: async ({ query, stateCode, city, limit }: { query: string; stateCode?: string; city?: string; limit?: number }) => {
         try {
-          const res = await fetch(`${API_URL}/api/vector-search`, {
+          const res = await fetch(`${SERVER_API_URL}/api/vector-search`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ query, stateCode, city, limit: limit || 5 }),
@@ -151,7 +153,7 @@ const runtime = new CopilotRuntime({
             lng: String(longitude),
             radius: String(radiusMiles || 25),
           })
-          const res = await fetch(`${API_URL}/api/attorneys/nearby?${params}`)
+          const res = await fetch(`${SERVER_API_URL}/api/attorneys/nearby?${params}`)
           if (!res.ok) return { error: 'Search failed', attorneys: [] }
           return await res.json()
         } catch (error) {

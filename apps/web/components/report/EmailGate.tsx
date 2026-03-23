@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
+import { PUBLIC_API_BASE } from '@/lib/public-api-base'
 
 interface EmailGateProps {
   children: ReactNode
@@ -13,13 +14,13 @@ export function EmailGate({ children, crashId }: EmailGateProps) {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // Check localStorage for previous unlock
-  if (typeof window !== 'undefined' && !unlocked) {
+  useEffect(() => {
     const stored = localStorage.getItem('velora_email_captured')
     if (stored) {
+      setEmail(stored)
       setUnlocked(true)
     }
-  }
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -32,8 +33,7 @@ export function EmailGate({ children, crashId }: EmailGateProps) {
     setError(null)
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
-      await fetch(`${apiUrl}/api/leads/email-capture`, {
+      await fetch(`${PUBLIC_API_BASE}/api/leads/email-capture`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, source: 'equalizer', crashId }),

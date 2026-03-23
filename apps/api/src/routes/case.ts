@@ -7,7 +7,7 @@ import { createMatter, getMatter, updateMatterStatus, linkCrashToMatter } from '
 import { ingestEpisode, ingestLocationVisit, ingestVoiceNote, ingestPhoto } from '../services/case/episode-ingest'
 import { getActiveFacts } from '../services/case/fact-manager'
 import { respondToConfirmation } from '../services/case/confirmation'
-import { caseShepherdTools } from '../agents/tools/case-shepherd-tools'
+import { caseShepherdAiTools } from '../agents/tools/case-shepherd-tools'
 import { agentConfigs, AGENT_IDS } from '../agents/mastra-config'
 import { EpisodeType } from '@velora/shared'
 import type { MatterCreateInput, EpisodeCreateInput, TimelineFilter } from '@velora/shared'
@@ -150,7 +150,8 @@ router.post('/', requireAuth, async (req: AuthenticatedRequest, res) => {
 // GET /api/case/:id — Get matter with relations
 router.get('/:id', optionalAuth, async (req, res) => {
   try {
-    const matter = await getMatter(req.params.id)
+    const matterId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id
+    const matter = await getMatter(matterId)
     if (!matter) {
       res.status(404).json({ error: 'Matter not found' })
       return
@@ -567,7 +568,7 @@ router.post('/:id/chat', async (req, res) => {
       model: getModel('standard'),
       system: systemPrompt,
       messages,
-      tools: caseShepherdTools as Record<string, unknown>,
+      tools: caseShepherdAiTools,
       maxSteps: 5,
     })
 

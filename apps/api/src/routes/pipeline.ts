@@ -21,8 +21,8 @@ router.post('/trigger', async (req, res) => {
       dataSource = await prisma.dataSource.create({
         data: {
           name: source || 'manual',
-          type: 'API',
-          baseUrl: '',
+          type: 'MANUAL',
+          endpoint: null,
         },
       })
     }

@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { PUBLIC_API_BASE } from "@/lib/public-api-base"
 
 interface IWasInThisCrashProps {
   crashId: string
@@ -36,8 +37,7 @@ export function IWasInThisCrash({ crashId, isVerified }: IWasInThisCrashProps) {
   const handleSubmit = async () => {
     setIsSubmitting(true)
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000"
-      const res = await fetch(`${apiUrl}/api/crashes/${crashId}/confirm`, {
+      const res = await fetch(`${PUBLIC_API_BASE}/api/crashes/${crashId}/confirm`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ role, description }),
@@ -55,8 +55,7 @@ export function IWasInThisCrash({ crashId, isVerified }: IWasInThisCrashProps) {
   const handleSkipDetails = async () => {
     setIsSubmitting(true)
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000"
-      await fetch(`${apiUrl}/api/crashes/${crashId}/confirm`, {
+      await fetch(`${PUBLIC_API_BASE}/api/crashes/${crashId}/confirm`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({}),

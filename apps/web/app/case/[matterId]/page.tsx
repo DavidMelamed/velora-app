@@ -1,7 +1,8 @@
 import TimelineWeb, { type TimelineEvent } from '@/components/case/TimelineWeb'
 import KnowledgeGraph from '@/components/case/KnowledgeGraph'
+import { SERVER_API_URL } from '@/lib/server-api-url'
 
-const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
+const API = SERVER_API_URL
 
 interface Matter {
   id: string
