@@ -18,8 +18,16 @@ interface TrackProfileViewProps {
  */
 export function TrackProfileView(props: TrackProfileViewProps) {
   useEffect(() => {
-    trackAttorneyView(props)
-  }, [props.slug]) // eslint-disable-line react-hooks/exhaustive-deps
+    trackAttorneyView({
+      slug: props.slug,
+      name: props.name,
+      firmName: props.firmName,
+      city: props.city,
+      stateCode: props.stateCode,
+      indexScore: props.indexScore,
+      reviewCount: props.reviewCount,
+    })
+  }, [props.slug, props.name, props.firmName, props.city, props.stateCode, props.indexScore, props.reviewCount])
 
   return null
 }
