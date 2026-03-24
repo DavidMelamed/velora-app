@@ -3,6 +3,13 @@
 import { displayName } from '@velora/shared'
 import { ReviewDimensions, type DimensionScores } from './ReviewDimensions'
 import { ConsultationCTA } from './ConsultationCTA'
+import {
+  ReviewInsights,
+  ClientReviews,
+  type ReviewStats,
+  type ReviewSnippet,
+} from './ReviewInsights'
+import { CompareButton } from './CompareButton'
 
 interface AttorneyProfileProps {
   attorney: {
@@ -34,6 +41,8 @@ interface AttorneyProfileProps {
   reviewCount: number
   dimensions?: DimensionScores | null
   bestQuotes?: string[]
+  reviewStats?: ReviewStats
+  reviewSnippets?: ReviewSnippet[]
 }
 
 export function AttorneyProfile({
@@ -42,6 +51,8 @@ export function AttorneyProfile({
   reviewCount,
   dimensions,
   bestQuotes,
+  reviewStats,
+  reviewSnippets,
 }: AttorneyProfileProps) {
   const location = [attorney.city, attorney.stateCode].filter(Boolean).join(', ')
   const aboutText = normalizeAboutText(attorney.description, attorney.address)
@@ -77,6 +88,9 @@ export function AttorneyProfile({
               <p className="mt-1 text-lg text-gray-600 dark:text-gray-400">{attorney.firmName}</p>
             )}
             {location && <p className="mt-1 text-sm text-gray-500">{location}</p>}
+            <div className="mt-2">
+              <CompareButton slug={attorney.slug} />
+            </div>
           </div>
 
           <div className="flex flex-wrap gap-3">
@@ -170,25 +184,16 @@ export function AttorneyProfile({
             </section>
           )}
 
+          {reviewStats && (
+            <ReviewInsights stats={reviewStats} dimensions={dimensions ?? null} />
+          )}
+
           {dimensions && <ReviewDimensions scores={dimensions} />}
 
-          {normalizedQuotes.length > 0 && (
-            <section>
-              <h2 className="mb-3 text-lg font-semibold text-gray-900 dark:text-white">
-                Client Reviews
-              </h2>
-              <div className="space-y-3">
-                {normalizedQuotes.map((text: string, i: number) => (
-                  <blockquote
-                    key={i}
-                    className="rounded-lg border-l-4 border-blue-500 bg-gray-50 p-4 text-sm italic text-gray-700 dark:bg-gray-800 dark:text-gray-300"
-                  >
-                    &ldquo;{text}&rdquo;
-                  </blockquote>
-                ))}
-              </div>
-            </section>
-          )}
+          <ClientReviews
+            reviews={reviewSnippets ?? []}
+            bestQuotes={normalizedQuotes}
+          />
         </div>
 
         <div className="space-y-6">

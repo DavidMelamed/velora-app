@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { Prisma, prisma } from '@velora/db'
 import { displayName } from '@velora/shared'
+import { CompareButton } from '@/components/attorney/CompareButton'
 
 export const metadata: Metadata = {
   title: 'Attorney Directory — Find Top Personal Injury Attorneys | Velora',
@@ -16,7 +17,7 @@ interface SearchParams {
 }
 
 const attorneyCardInclude = {
-  attorneyIndex: { select: { score: true } },
+  attorneyIndex: { select: { score: true, reviewCount: true } },
   _count: { select: { reviews: true } },
 } satisfies Prisma.AttorneyInclude
 
@@ -150,11 +151,15 @@ export default async function AttorneyDirectoryPage({
         )}
 
         {attorneys.map((attorney) => (
-          <a
+          <div
             key={attorney.id}
-            href={`/attorneys/${attorney.slug}`}
-            className="block rounded-lg border border-gray-200 bg-white p-5 transition-colors hover:border-blue-300 hover:shadow-sm dark:border-gray-700 dark:bg-gray-800 dark:hover:border-blue-600"
+            className="relative rounded-lg border border-gray-200 bg-white p-5 transition-colors hover:border-blue-300 hover:shadow-sm dark:border-gray-700 dark:bg-gray-800 dark:hover:border-blue-600"
           >
+            <a
+              href={`/attorneys/${attorney.slug}`}
+              className="absolute inset-0 z-0"
+              aria-label={`View ${attorney.name} profile`}
+            />
             <div className="flex items-start justify-between">
               <div>
                 <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
@@ -185,18 +190,26 @@ export default async function AttorneyDirectoryPage({
                 )}
               </div>
 
-              <div className="text-right">
+              <div className="flex flex-col items-end gap-2">
                 {attorney.attorneyIndex && (
                   <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
                     {Math.round(attorney.attorneyIndex.score)}
                   </div>
                 )}
-                <div className="text-xs text-gray-500">
-                  {attorney._count.reviews} review{attorney._count.reviews !== 1 ? 's' : ''}
+                {(() => {
+                  const reviewCount = attorney._count.reviews || attorney.googleReviewCount || 0
+                  return reviewCount > 0 ? (
+                    <div className="text-xs text-gray-500">
+                      {reviewCount.toLocaleString()} review{reviewCount !== 1 ? 's' : ''}
+                    </div>
+                  ) : null
+                })()}
+                <div className="relative z-10">
+                  <CompareButton slug={attorney.slug} />
                 </div>
               </div>
             </div>
-          </a>
+          </div>
         ))}
       </div>
 

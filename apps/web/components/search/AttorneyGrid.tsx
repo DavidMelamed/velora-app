@@ -1,9 +1,12 @@
 'use client'
 
+import { CompareButton } from '@/components/attorney/CompareButton'
+
 // Plain HTML/Tailwind instead of @velora/ui to avoid React types version mismatch
 
 interface AttorneyResult {
   id: string
+  slug?: string
   name: string
   firmName: string | null
   city: string | null
@@ -98,6 +101,7 @@ export function AttorneyGrid({ attorneys, total }: AttorneyGridProps) {
 
               <div className="mt-3 flex items-center justify-between text-xs text-gray-500">
                 <span>{atty.reviewCount} review{atty.reviewCount !== 1 ? 's' : ''}</span>
+                {atty.slug && <CompareButton slug={atty.slug} compact />}
                 {atty.yearsExperience && <span>{atty.yearsExperience} years experience</span>}
                 {atty.trend && (
                   <span

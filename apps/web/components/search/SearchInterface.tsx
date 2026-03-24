@@ -3,7 +3,8 @@
 import { useChat } from '@ai-sdk/react'
 import type { Message } from 'ai'
 import { useSearchParams } from 'next/navigation'
-import { useCallback, useEffect, useRef, Suspense } from 'react'
+import { useCallback, useEffect, useRef, useState, Suspense } from 'react'
+import { saveSession, getSavedSessions } from '@/lib/research-store'
 import { CrashResultsMap } from './CrashResultsMap'
 import { IntersectionCard } from './IntersectionCard'
 import { AttorneyGrid } from './AttorneyGrid'
@@ -54,21 +55,32 @@ function ToolResult({ toolName, result }: { toolName: string; result: unknown })
 function SearchInterfaceInner() {
   const searchParams = useSearchParams()
   const initialQuery = searchParams.get('q') ?? ''
+  const restoreId = searchParams.get('restore') ?? ''
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const hasSentInitial = useRef(false)
 
-  // Restore messages from sessionStorage
+  // Restore messages from localStorage or a saved session
   const getStoredMessages = useCallback((): Message[] | undefined => {
     if (typeof window === 'undefined') return undefined
     try {
-      const stored = sessionStorage.getItem('velora-search-messages')
+      // If restoring a saved session, load it and set as active
+      if (restoreId) {
+        const sessions = getSavedSessions()
+        const session = sessions.find((s) => s.id === restoreId)
+        if (session?.messages) {
+          const msgs = session.messages as Message[]
+          localStorage.setItem('velora-search-messages', JSON.stringify(msgs))
+          return msgs
+        }
+      }
+      const stored = localStorage.getItem('velora-search-messages')
       if (stored) return JSON.parse(stored) as Message[]
     } catch {
       // ignore parse errors
     }
     return undefined
-  }, [])
+  }, [restoreId])
 
   const { messages, input, handleInputChange, handleSubmit, isLoading, append, setMessages, error } = useChat({
     api: '/api/search',
@@ -80,7 +92,7 @@ function SearchInterfaceInner() {
   useEffect(() => {
     if (typeof window !== 'undefined' && messages.length > 0) {
       try {
-        sessionStorage.setItem('velora-search-messages', JSON.stringify(messages))
+        localStorage.setItem('velora-search-messages', JSON.stringify(messages))
       } catch {
         // ignore storage errors
       }
@@ -91,7 +103,7 @@ function SearchInterfaceInner() {
   const clearConversation = useCallback(() => {
     setMessages([])
     if (typeof window !== 'undefined') {
-      sessionStorage.removeItem('velora-search-messages')
+      localStorage.removeItem('velora-search-messages')
     }
   }, [setMessages])
 
@@ -133,18 +145,43 @@ function SearchInterfaceInner() {
     return ['Show more details', 'Find attorneys nearby', 'Show trends for this area']
   }, [messages])
 
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saved'>('idle')
+
+  const handleSave = useCallback(() => {
+    const result = saveSession(messages)
+    if (result) {
+      setSaveStatus('saved')
+      setTimeout(() => setSaveStatus('idle'), 2000)
+    }
+  }, [messages])
+
   return (
     <div className="flex h-[calc(100vh-4rem)] flex-col">
-      {/* Clear button */}
+      {/* Action bar */}
       {messages.length > 0 && (
-        <div className="flex justify-end px-4 pt-2">
-          <button
-            type="button"
-            onClick={clearConversation}
-            className="text-xs text-gray-400 transition-colors hover:text-gray-600 dark:hover:text-gray-300"
+        <div className="flex items-center justify-between border-b border-gray-100 px-4 pt-2 pb-1 dark:border-gray-800">
+          <a
+            href="/research"
+            className="text-xs text-blue-600 transition-colors hover:text-blue-700 dark:text-blue-400"
           >
-            Clear conversation
-          </button>
+            My Research
+          </a>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={handleSave}
+              className="text-xs text-blue-600 transition-colors hover:text-blue-700 dark:text-blue-400"
+            >
+              {saveStatus === 'saved' ? 'Saved!' : 'Save research'}
+            </button>
+            <button
+              type="button"
+              onClick={clearConversation}
+              className="text-xs text-gray-400 transition-colors hover:text-gray-600 dark:hover:text-gray-300"
+            >
+              Clear
+            </button>
+          </div>
         </div>
       )}
 
@@ -255,8 +292,23 @@ function SearchInterfaceInner() {
 
           {/* Error message */}
           {error && (
-            <div className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-300">
-              Search is temporarily unavailable. Please try again in a moment.
+            <div className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 dark:border-red-800 dark:bg-red-900/20">
+              <p className="text-sm font-medium text-red-700 dark:text-red-300">
+                Search is temporarily unavailable
+              </p>
+              <p className="mt-1 text-xs text-red-600 dark:text-red-400">
+                The AI search service may be starting up. Please try again.
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  const lastUser = [...messages].reverse().find(m => m.role === 'user')
+                  if (lastUser) append({ role: 'user', content: typeof lastUser.content === 'string' ? lastUser.content : '' })
+                }}
+                className="mt-2 rounded-md bg-red-100 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-200 dark:bg-red-900/40 dark:text-red-300 dark:hover:bg-red-900/60"
+              >
+                Retry Search
+              </button>
             </div>
           )}
 
